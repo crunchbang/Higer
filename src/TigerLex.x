@@ -10,53 +10,54 @@ $alpha = [a-zA-Z] -- alphabetic characters
 
 tokens :-
 
-  type                              { \s -> TYPE }
-  int                               { \s -> TYPE_ID_int}
-  string                            { \s -> TYPE_ID_string}
-  var                               { \s -> VAR }
-  function                          { \s -> FUNCTION }
-  break                             { \s -> BREAK }
-  of                                { \s -> OF }
-  end                               { \s -> END }
-  in                                { \s -> IN }
-  nil                               { \s -> NIL }
-  let                               { \s -> LET }
-  do                                { \s -> DO }
-  to                                { \s -> TO }
-  for                               { \s -> FOR }
-  while                             { \s -> WHILE }
-  else                              { \s -> ELSE }
-  then                              { \s -> THEN }
-  if                                { \s -> IF }
-  array                             { \s -> ARRAY }
-  :\=                               { \s -> ASSIGN }
-  \|                                { \s -> OR }
-  &                                 { \s -> AND }
-  \>\=                              { \s -> GEQ }
-  \>                                { \s -> GTN }
-  \<\=                              { \s -> LEQ }
-  \<                                { \s -> LTN }
-  \<\>                              { \s -> NEQ }
-  \=                                { \s -> EQU }
-  \/                                { \s -> DIVIDE }
-  \*                                { \s -> MULTIPLY }
-  \-                                { \s -> MINUS }
-  \+                                { \s -> PLUS }
-  \.                                { \s -> DOT }
-  \}                                { \s -> RBRACE }
-  \{                                { \s -> LBRACE }
-  \[                                { \s -> LBRACK }
-  \]                                { \s -> RBRACK }
-  \)                                { \s -> RPAREN }
-  \(                                { \s -> LPAREN }
-  \;                                { \s -> SEMICOLON }
-  :                                 { \s -> COLON }
-  ","                               { \s -> COMMA }
-
-  $white+                           ;
-  "--".*                            ;
-  $digit+                           { \s -> INT (read s) }
-  $alpha [$alpha $digit \_ \’]*     { \s -> ID s }
+  <0>           type                              { \s -> TYPE }
+  <0>           int                               { \s -> TYPE_ID_INT}
+  <0>           string                            { \s -> TYPE_ID_STRING}
+  <0>           var                               { \s -> VAR }
+  <0>           function                          { \s -> FUNCTION }
+  <0>           break                             { \s -> BREAK }
+  <0>           of                                { \s -> OF }
+  <0>           end                               { \s -> END }
+  <0>           in                                { \s -> IN }
+  <0>           nil                               { \s -> NIL }
+  <0>           let                               { \s -> LET }
+  <0>           do                                { \s -> DO }
+  <0>           to                                { \s -> TO }
+  <0>           for                               { \s -> FOR }
+  <0>           while                             { \s -> WHILE }
+  <0>           else                              { \s -> ELSE }
+  <0>           then                              { \s -> THEN }
+  <0>           if                                { \s -> IF }
+  <0>           array                             { \s -> ARRAY }
+  <0>           \/\*.*\*\/                        ;
+  <0>           :\=                               { \s -> ASSIGN }
+  <0>           \|                                { \s -> OR }
+  <0>           &                                 { \s -> AND }
+  <0>           \>\=                              { \s -> GEQ }
+  <0>           \>                                { \s -> GTN }
+  <0>           \<\=                              { \s -> LEQ }
+  <0>           \<                                { \s -> LTN }
+  <0>           \<\>                              { \s -> NEQ }
+  <0>           \=                                { \s -> EQU }
+  <0>           \/                                { \s -> DIVIDE }
+  <0>           \*                                { \s -> MULTIPLY }
+  <0>           \-                                { \s -> MINUS }
+  <0>           \+                                { \s -> PLUS }
+  <0>           \.                                { \s -> DOT }
+  <0>           \}                                { \s -> RBRACE }
+  <0>           \{                                { \s -> LBRACE }
+  <0>           \[                                { \s -> LBRACK }
+  <0>           \]                                { \s -> RBRACK }
+  <0>           \)                                { \s -> RPAREN }
+  <0>           \(                                { \s -> LPAREN }
+  <0>           \;                                { \s -> SEMICOLON }
+  <0>           :                                 { \s -> COLON }
+  <0>           ","                               { \s -> COMMA }  
+  <0>           \"[^\"]*\"                        { \s -> STRING }
+  <0>           $white+                           ;
+  <0>           "--".*                            ;
+  <0>           $digit+                           { \s -> INT (read s) }
+  <0>           $alpha [$alpha $digit \_ \’]*     { \s -> ID s }
 
 {
 -- Each action has type :: String -> Token
@@ -64,8 +65,8 @@ tokens :-
 -- The token type:
 data Token =
   TYPE              |
-  TYPE_ID_int       |
-  TYPE_ID_string    |
+  TYPE_ID_INT       |
+  TYPE_ID_STRING    |
   VAR               |
   FUNCTION          |
   BREAK             |
@@ -105,6 +106,7 @@ data Token =
   SEMICOLON         |
   COLON             |
   COMMA             |
+  STRING            |
   SYM Char          |
   ID String         |
   INT Int
