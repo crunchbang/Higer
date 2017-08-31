@@ -1,6 +1,13 @@
 module Lib
-    ( someFunc
+    ( tokenizeFile
     ) where
 
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+import System.IO
+import TigerLex
+
+tokenizeFile :: IO ()
+tokenizeFile = do
+        fileName <- getLine
+        fileHandle <- openFile fileName ReadMode
+        contents <- hGetContents fileHandle
+        tokenize contents

@@ -1,5 +1,6 @@
 {
-module Main (main) where
+module TigerLex (tokenize) where
+
 }
 
 %wrapper "basic"
@@ -62,54 +63,52 @@ tokens :-
 
 -- The token type:
 data Token =
-  TYPE |
-  TYPE_ID_int |
-  TYPE_ID_string |
-  VAR |
-  FUNCTION |
-  BREAK |
-  OF |
-  END |
-  NIL |
-  LET |
-  IN |
-  DO |
-  TO |
-  FOR |
-  WHILE |
-  ELSE |
-  THEN |
-  IF |
-  ARRAY |
-  ASSIGN |
-  OR |
-  AND |
-  GEQ |
-  GTN |
-  LEQ |
-  LTN |
-  NEQ |
-  EQU |
-  DIVIDE |
-  MULTIPLY |
-  MINUS |
-  PLUS |
-  DOT |
-  RBRACE |
-  LBRACE |
-  LBRACK |
-  RBRACK |
-  RPAREN |
-  LPAREN |
-  SEMICOLON |
-  COLON |
-  COMMA |
-  SYM Char |
-  ID String |
+  TYPE              |
+  TYPE_ID_int       |
+  TYPE_ID_string    |
+  VAR               |
+  FUNCTION          |
+  BREAK             |
+  OF                |
+  END               |
+  NIL               |
+  LET               |
+  IN                |
+  DO                |
+  TO                |
+  FOR               |
+  WHILE             |
+  ELSE              |
+  THEN              |
+  IF                |
+  ARRAY             |
+  ASSIGN            |
+  OR                |
+  AND               |
+  GEQ               |
+  GTN               |
+  LEQ               |
+  LTN               |
+  NEQ               |
+  EQU               |
+  DIVIDE            |
+  MULTIPLY          |
+  MINUS             |
+  PLUS              |
+  DOT               |
+  RBRACE            |
+  LBRACE            |
+  LBRACK            |
+  RBRACK            |
+  RPAREN            |
+  LPAREN            |
+  SEMICOLON         |
+  COLON             |
+  COMMA             |
+  SYM Char          |
+  ID String         |
   INT Int
   deriving (Eq,Show)
 
-main = do
-  s <- getContents
-  print (alexScanTokens s)
+tokenize contents = print (alexScanTokens contents)
 }
