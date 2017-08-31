@@ -3,12 +3,10 @@ version:             0.1.0.0
 -- synopsis:
 -- description:
 homepage:            https://github.com/githubuser/Higer#readme
-license:             BSD3
+license:             MIT
 license-file:        LICENSE
-author:              Author name here
+author:              Athul Suresh, Mithum Mathew
 maintainer:          example@example.com
-copyright:           2017 Author name here
-category:            Web
 build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
