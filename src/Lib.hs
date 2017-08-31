@@ -1,6 +1,7 @@
 module Lib
-    ( tokenizeFile
-    ) where
+        (
+         tokenizeFile
+        ) where
 
 import System.IO
 import TigerLex
@@ -10,4 +11,5 @@ tokenizeFile = do
         fileName <- getLine
         fileHandle <- openFile fileName ReadMode
         contents <- hGetContents fileHandle
-        tokenize contents
+        print (tokenize contents)
+

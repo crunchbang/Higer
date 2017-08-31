@@ -1,5 +1,7 @@
 {
-module TigerLex (tokenize, Token) where
+module TigerLex (Token(..), 
+                 tokenize
+                ) where
 }
 
 %wrapper "basic"
