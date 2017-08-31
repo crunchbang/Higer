@@ -1,6 +1,5 @@
 {
-module TigerLex (tokenize) where
-
+module TigerLex (tokenize, Token) where
 }
 
 %wrapper "basic"
@@ -53,14 +52,13 @@ tokens :-
   <0>           \;                                { \s -> SEMICOLON }
   <0>           :                                 { \s -> COLON }
   <0>           ","                               { \s -> COMMA }  
-  <0>           \"[^\"]*\"                        { \s -> STRING }
+  <0>           \"[^\"]*\"                        { \s -> STRING (read s)}
   <0>           $white+                           ;
   <0>           "--".*                            ;
   <0>           $digit+                           { \s -> INT (read s) }
   <0>           $alpha [$alpha $digit \_ \’]*     { \s -> ID s }
 
 {
--- Each action has type :: String -> Token
 
 -- The token type:
 data Token =
@@ -106,11 +104,13 @@ data Token =
   SEMICOLON         |
   COLON             |
   COMMA             |
-  STRING            |
+  STRING String     |
   SYM Char          |
   ID String         |
   INT Int
   deriving (Eq,Show)
 
-tokenize contents = print (alexScanTokens contents)
+tokenize :: String -> [Token]
+tokenize contents = alexScanTokens contents
+
 }
