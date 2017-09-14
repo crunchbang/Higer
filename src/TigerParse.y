@@ -2,26 +2,37 @@
 
 module TigerParse where
 
-import TigerLex(Token(..))
+import TigerLex(Token(..),
+                getString,
+                getNum)
+import TigerParseHelper (Program(..),
+                         Exp(..),
+                         LValue(..),
+                         InfixOp(..),
+                         FieldCreate(..),
+                         Decl(..),
+                         Type(..),
+                         FieldDecl(..),
+                        ) 
 
 }
 
-%name TigerParse
+%name tigerParse
 %tokentype { Token }
 %error { parseError }
 
-%right IN OF ELSE
+%nonassoc do assign
+%right in of else
 %left '|'
 %left '&'
 %nonassoc '>' '<' '>=' '<=' '=' '<>'
 %left '+' '-'
 %left '*' '/'
+%left neg
 
 %token
 
    type                              { TYPE }
-   int                               { TYPE_ID_INT}
-   string                            { TYPE_ID_STRING}
    var                               { VAR }
    function                          { FUNCTION }
    break                             { BREAK }
@@ -75,40 +86,40 @@ dec         : tyDec                                          { $1 }
             | varDec                                         { $1 }
             | funDec                                         { $1 }
 
-tyDec       : type id '=' ty                                 { TypeDec { typeId=$2 , ty=$4 } }
+tyDec       : type id '=' ty                                 { TypeDec { typeId=(getString $2) , ty=$4 } }
 
-ty          : id                                             { Type $1 }
+ty          : id                                             { Type (getString $1) }
             | arrTy                                          { $1 }
             | recTy                                          { $1 }
 
-arrTy       : array of id                                    { ArrType $3 }
+arrTy       : array of id                                    { ArrType (getString $3) }
 
-recTy       : '{' fDeclist '}'                               { RecType $2 }
+recTy       : '{' fDecList '}'                               { RecType $2 }
 
 fDecList    : {- empty -}                                    { [] }
             | fieldDec ',' fDecList                          { $1 : $3 }
             | fieldDec                                       { [$1] }
 
-fieldDec    : id ':' id                                      { FieldDecl { fId=$1, fType=$3 } }
+fieldDec    : id ':' id                                      { FieldDecl { fId=(getString $1), fType=(getString $3) } }
 
-funDec      : function id '(' fDecList ')' '=' exp           { FunDec { declFunId=$2, declFunArgs=$4, funRetType=Nothing, funDef=$7 } }
-            | function id '(' fDecList ')' ':' id '=' exp    { FunDec { declFunId=$2, declFunArgs=$4, funRetType=$7, funDef=$9 } }
+funDec      : function id '(' fDecList ')' '=' exp           { FunDec { declFunId=(getString $2), declFunArgs=$4, funRetType=Nothing, funDef=$7 } }
+            | function id '(' fDecList ')' ':' id '=' exp    { FunDec { declFunId=(getString $2), declFunArgs=$4, funRetType=(Just (getString $7)), funDef=$9 } }
 
-varDec      : var id ':=' exp                                { VarDec { varId=$2, varType=Nothing, value=$4 } }
-            | var id ':' id ':=' exp                         { VarDec { varId=$2, varType=$4, value=$6 } }
+varDec      : var id ':=' exp                                { VarDec { varId=(getString $2), varType=Nothing, value=$4 } }
+            | var id ':' id ':=' exp                         { VarDec { varId=(getString $2), varType=(Just (getString $4)), value=$6 } }
 
-lValue      : id                                             { LVar $1 }
+lValue      : id                                             { LVar (getString $1) }
             | subscript                                      { $1 }
             | fieldExp                                       { $1 }
 
 subscript   : lValue '[' exp ']'                             { LSubscript $1 $3 }
 
-fieldExp    : lValue '.' id                                  { LField $1 $3}
+fieldExp    : lValue '.' id                                  { LField $1 (getString $3)}
 
 exp         : nil                                            { NilValue }
             | lValue                                         { LExp $1 }
-            | intLit                                         { IntLiteral $1 }
-            | stringLit                                      { StringLiteral $1 }
+            | intLit                                         { IntLiteral (getNum $1) }
+            | stringLit                                      { StringLiteral (getString $1) }
             | seqExp                                         { $1 }
             | negation                                       { $1 }
             | callExp                                        { $1 }
@@ -123,15 +134,15 @@ exp         : nil                                            { NilValue }
             | break                                          { Break }
             | letExp                                         { $1 }
 
-seqExp      : '(' expseq ')'                                 { if length($2) == 1 then head $2 else SeqExp (reverse $2) }
+seqExp      : '(' expseq ')'                                 { SeqExp (reverse $2) }
 
 expseq      : {- empty -}                                    { [] }
             | expseq ';' exp                                 { $3 : $1 }
             | exp                                            { [$1] }
 
-negation    : '-' exp                                        { Negation $1 }
+negation    : '-' exp                                        { InfixExp { infixLhs=(IntLiteral 0), op=Sub, infixRhs=$2 } }
 
-callExp     : id '(' arglist ')'                             { CallExp { callFunId=$1, callFunArgs=(reverse $3) } }
+callExp     : id '(' arglist ')'                             { CallExp { callFunId=(getString $1), callFunArgs=(reverse $3) } }
 
 arglist     : {- empty -}                                    { [] }
             | arglist ',' exp                                { $3 : $1 }
@@ -148,15 +159,15 @@ infixExp    : exp '*' exp                                    { InfixExp { infixL
             | exp '>=' exp                                   { InfixExp { infixLhs=$1, op=GreaterThanEqual, infixRhs=$3 } }
             | exp '<=' exp                                   { InfixExp { infixLhs=$1, op=LessThanEqual, infixRhs=$3 } }
 
-arrCreate   : id '[' exp ']' of exp                          { ArrCreate { arrType=$1, size=$3, defVal=$6 } }
+arrCreate   : id '[' exp ']' of exp                          { ArrCreate { arrType=(getString $1), size=$3, defVal=$6 } }
 
-recCreate   : id '{' recFList '}'                            { RecCreate { recType=$1, recFields=$3 } }
+recCreate   : id '{' recFList '}'                            { RecCreate { recType=(getString $1), recFields=$3 } }
 
 recFList    : fieldCreate                                    { [$1] }
             | recFList ',' fieldCreate                       { $3 : $1 }
             | {- empty -}                                    { [] }
 
-fieldCreate : id '=' exp                                     { $3 }
+fieldCreate : id '=' exp                                     { FieldCreate (getString $1) $3 }
 
 assignment  : lValue ':=' exp                                { Assignment { assignmentLhs=$1, assignmentRhs=$3 } }
 
@@ -166,9 +177,16 @@ ifThen      : if exp then exp                                { IfThen { ifCond=$
 
 whileExp    : while exp do exp                               { WhileExp { whileCond=$2, whileBody=$4 } }
 
-forExp      : for id ':=' exp to exp do exp                  { ForExp { forVar=$2, low=$4, high=$6, forBody=$6 } }
+forExp      : for id ':=' exp to exp do exp                  { ForExp { forVar=(getString $2), low=$4, high=$6, forBody=$8 } }
 
-letExp      : let declist in expseq end                      { LetExp { letDecl=(reverse $2), letBody=(if length($4) == 1 then head $4 else SeqExp (reverse $4)) } }
+letExp      : let declist in expseq end                      { LetExp { letDecl=(reverse $2), letBody=(SeqExp (reverse $4)) } }
 
 declist     : declist dec                                    { $2: $1 }
             | dec                                            { [$1] }
+
+{
+
+parseError :: [Token] -> a
+parseError x  = error ("Parse error" ++ show x)
+           
+}

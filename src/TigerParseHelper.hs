@@ -33,7 +33,7 @@ data Exp = LExp LValue
          | WhileExp { whileCond :: Exp, whileBody :: Exp }
          | ForExp { forVar :: Id, low :: Exp, high :: Exp, forBody :: Exp }
          | Break
-         | LetExp { letDecl :: [Decl], letBody :: [Exp] }
+         | LetExp { letDecl :: [Decl], letBody :: Exp }
          deriving (Eq)
 
 instance Show Exp where

@@ -1,6 +1,8 @@
 {
 module TigerLex (Token(..), 
-                 tokenize
+                 tokenize,
+                 getString,
+                 getNum,
                 ) where
 }
 
@@ -12,8 +14,6 @@ $alpha = [a-zA-Z] -- alphabetic characters
 tokens :-
 
   <0>           type                              { \s -> TYPE }
-  <0>           int                               { \s -> TYPE_ID_INT}
-  <0>           string                            { \s -> TYPE_ID_STRING}
   <0>           var                               { \s -> VAR }
   <0>           function                          { \s -> FUNCTION }
   <0>           break                             { \s -> BREAK }
@@ -111,6 +111,15 @@ data Token =
   ID String         |
   INT Int
   deriving (Eq,Show)
+
+getString :: Token -> String
+getString (ID s) = s
+getString (STRING s) = s
+getString _ = error "Improper token"
+
+getNum :: Token -> Int
+getNum (INT n) = n
+getNum _ = error "Improper token"
 
 tokenize :: String -> [Token]
 tokenize contents = alexScanTokens contents
