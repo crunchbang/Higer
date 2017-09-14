@@ -1,4 +1,0 @@
-type arrtype1 = array of int
-var arr1 := arrtype1 [10] of 0
-/* adfadfadfadsf */
-"adb"
