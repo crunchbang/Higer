@@ -123,19 +123,19 @@ exp         : nil                                            { NilValue }
             | break                                          { Break }
             | letExp                                         { $1 }
 
-seqExp      : '(' expseq ')'                                 { }
+seqExp      : '(' expseq ')'                                 { if length($2) == 1 then head $2 else SeqExp (reverse $2) }
 
-expseq      : {- empty -}                                    { }
-            | expseq ';' exp                                 { }
-            | exp                                            { }
+expseq      : {- empty -}                                    { [] }
+            | expseq ';' exp                                 { $3 : $1 }
+            | exp                                            { [$1] }
 
 negation    : '-' exp                                        { Negation $1 }
 
-callExp     : id '(' arglist ')'                             { }
+callExp     : id '(' arglist ')'                             { CallExp { callFunId=$1, callFunArgs=(reverse $3) } }
 
-arglist     : {- empty -}                                    { }
-            | arglist ',' exp                                { }
-            | exp                                            { }
+arglist     : {- empty -}                                    { [] }
+            | arglist ',' exp                                { $3 : $1 }
+            | exp                                            { [$1] }
 
 infixExp    : exp '*' exp                                    { InfixExp { infixLhs=$1, op=Mul, infixRhs=$3 } }
             | exp '/' exp                                    { InfixExp { infixLhs=$1, op=Div, infixRhs=$3 } }
@@ -148,17 +148,17 @@ infixExp    : exp '*' exp                                    { InfixExp { infixL
             | exp '>=' exp                                   { InfixExp { infixLhs=$1, op=GreaterThanEqual, infixRhs=$3 } }
             | exp '<=' exp                                   { InfixExp { infixLhs=$1, op=LessThanEqual, infixRhs=$3 } }
 
-arrCreate   : id '[' exp ']' of exp                          { }
+arrCreate   : id '[' exp ']' of exp                          { ArrCreate { arrType=$1, size=$3, defVal=$6 } }
 
-recCreate   : id '{' recFList '}'                            { }
+recCreate   : id '{' recFList '}'                            { RecCreate { recType=$1, recFields=$3 } }
 
-recFList    : fieldCreate                                    { }
-            | recFList ',' fieldCreate                       { }
-            | {- empty -}                                    { }
+recFList    : fieldCreate                                    { [$1] }
+            | recFList ',' fieldCreate                       { $3 : $1 }
+            | {- empty -}                                    { [] }
 
-fieldCreate : id '=' exp                                     { }
+fieldCreate : id '=' exp                                     { $3 }
 
-assignment  : lValue ':=' exp                                { }
+assignment  : lValue ':=' exp                                { Assignment { assignmentLhs=$1, assignmentRhs=$3 } }
 
 ifThenElse  : if exp then exp else exp                       { IfThen { ifCond=$2, thenExp=$4, elseExp=(Just $6) } }
 
@@ -168,7 +168,7 @@ whileExp    : while exp do exp                               { WhileExp { whileC
 
 forExp      : for id ':=' exp to exp do exp                  { ForExp { forVar=$2, low=$4, high=$6, forBody=$6 } }
 
-letExp      : let declist in expseq end                      { }
+letExp      : let declist in expseq end                      { LetExp { letDecl=(reverse $2), letBody=(if length($4) == 1 then head $4 else SeqExp (reverse $4)) } }
 
-declist     : declist dec                                    { }
-            | dec                                            { }
+declist     : declist dec                                    { $2: $1 }
+            | dec                                            { [$1] }
