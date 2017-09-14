@@ -57,7 +57,12 @@ instance Show Exp where
 data LValue = LVar Id
             | LSubscript LValue Exp
             | LField LValue Id
-            deriving (Show, Eq)
+            deriving (Eq)
+
+instance Show LValue where
+        show (LVar iden) = "(LVar " ++ show iden ++ ")"
+        show (LSubscript lval e) = "(LSubscript " ++ show lval ++ " " ++ show e ++ ")"
+        show (LField lval iden) = "(LField " ++ show lval ++ " " ++ show iden ++ ")"
 
 data InfixOp = Add
              | Sub
@@ -69,22 +74,50 @@ data InfixOp = Add
              | LessThan
              | GreaterThanEqual
              | LessThanEqual
-             deriving (Show, Eq)
+             deriving (Eq)
+
+instance Show InfixOp where
+        show Add = "(Add)"
+        show Sub = "(Sub)"
+        show Mul = "(Mul)"
+        show Div = "(Div)"
+        show Equal = "(Equal)"
+        show NotEqual = "(NotEqual)"
+        show GreaterThan = "(GreaterThan)"
+        show LessThan = "(LessThan)"
+        show GreaterThanEqual = "(GreaterThanEqual)"
+        show LessThanEqual = "(LessThanEqual)"
 
 data FieldCreate = FieldCreate Id Exp
-                 deriving (Show, Eq) 
+                 deriving (Eq) 
+
+instance Show FieldCreate where
+        show (FieldCreate iden e) = "(FieldCreate " ++ show iden ++ " " ++ show e ++ ")"
 
 data Decl = TypeDec { typeId :: Id, ty :: Type }
           | VarDec  { varId :: Id, varType :: Maybe Id, value :: Exp }
           | FunDec  { declFunId :: Id, declFunArgs :: [FieldDecl], funRetType :: Maybe Id, funDef :: Exp }
-          deriving (Show, Eq)
+          deriving (Eq)
+
+instance Show Decl where
+        show TypeDec { typeId = ti, ty = t } = "(TypeDec " ++ show ti ++ " " ++ show t ++ ")"
+        show VarDec  { varId = vi, varType = vt, value = v } = "(VarDec " ++ show vi ++ " " ++ show vt ++ " " ++ show v ++ ")"
+        show FunDec  { declFunId = dfid, declFunArgs = dfa, funRetType = frt, funDef = fd } = "(FunDec " ++ show dfid ++ " " ++ show dfa ++ " " ++ show frt ++ " " ++ show fd ++ ")"
 
 data Type = Type Id
           | ArrType Id
-          | RecType FieldDecl
-          deriving (Show, Eq)
+          | RecType [FieldDecl]
+          deriving (Eq)
+
+instance Show Type where
+        show (Type iden) = "(Type " ++ show iden ++ ")"
+        show (ArrType iden) = "(ArrType " ++ show iden ++ ")"
+        show (RecType fds) = "(RecType " ++ show fds ++ ")"
 
 data FieldDecl = FieldDecl { fId :: Id, fType :: Id }
-               deriving (Show, Eq)
+               deriving (Eq)
+
+instance Show FieldDecl where
+        show FieldDecl { fId = fiden, fType = ft } = "(FieldDecl " ++ show fiden ++ " " ++ show ft ++ ")"
 
 -- Helper functions for displaying the tree
