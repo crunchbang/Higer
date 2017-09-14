@@ -69,106 +69,106 @@ import TigerLex(Token(..))
 
 %%
 
-program     : exp
+program     : exp                                            { Program $1 }
 
-dec         : tyDec
-            | varDec
-            | funDec
+dec         : tyDec                                          { $1 }
+            | varDec                                         { $1 }
+            | funDec                                         { $1 }
 
-tyDec       : type id '=' ty
+tyDec       : type id '=' ty                                 { TypeDec { typeId=$2 , ty=$4 } }
 
-ty          : id
-            | arrTy
-            | recTy
+ty          : id                                             { Type $1 }
+            | arrTy                                          { $1 }
+            | recTy                                          { $1 }
 
-arrTy       : array of id
+arrTy       : array of id                                    { ArrType $3 }
 
-recTy       : '{' fDeclist '}'
+recTy       : '{' fDeclist '}'                               { RecType $2 }
 
-fDecList    : {- empty -}
-            | fDecList ',' fieldDec
-            | fieldDec
+fDecList    : {- empty -}                                    { [] }
+            | fieldDec ',' fDecList                          { $1 : $3 }
+            | fieldDec                                       { [$1] }
 
-fieldDec    : id : id
+fieldDec    : id ':' id                                      { FieldDecl { fId=$1, fType=$3 } }
 
-funDec      : function id '(' fDecList ')' '=' exp
-            | function id '(' fDecList ')' ':' id '=' exp
+funDec      : function id '(' fDecList ')' '=' exp           { FunDec { declFunId=$2, declFunArgs=$4, funRetType=Nothing, funDef=$7 } }
+            | function id '(' fDecList ')' ':' id '=' exp    { FunDec { declFunId=$2, declFunArgs=$4, funRetType=$7, funDef=$9 } }
 
-varDec      : var id ':=' exp
-            | var id ':' id ':=' exp
+varDec      : var id ':=' exp                                { VarDec { varId=$2, varType=Nothing, value=$4 } }
+            | var id ':' id ':=' exp                         { VarDec { varId=$2, varType=$4, value=$6 } }
 
-lValue      : id
-            | subscript
-            | fieldExp
+lValue      : id                                             { LVar $1 }
+            | subscript                                      { $1 }
+            | fieldExp                                       { $1 }
 
-subscript   : lValue '[' exp ']'
+subscript   : lValue '[' exp ']'                             { LSubscript $1 $3 }
 
-fieldExp    : lValue '.' id
+fieldExp    : lValue '.' id                                  { LField $1 $3}
 
-exp         : nil
-            | lvalue
-            | intLit
-            | stringLit
-            | seqExp
-            | negation
-            | callExp
-            | infixExp
-            | arrCreate
-            | recCreate
-            | assignment
-            | ifThenElse
-            | ifThen
-            | whileExp
-            | forExp
-            | break
-            | letExp
+exp         : nil                                            { NilValue }
+            | lValue                                         { LExp $1 }
+            | intLit                                         { IntLiteral $1 }
+            | stringLit                                      { StringLiteral $1 }
+            | seqExp                                         { $1 }
+            | negation                                       { $1 }
+            | callExp                                        { $1 }
+            | infixExp                                       { $1 }
+            | arrCreate                                      { $1 }
+            | recCreate                                      { $1 }
+            | assignment                                     { $1 }
+            | ifThenElse                                     { $1 }
+            | ifThen                                         { $1 }
+            | whileExp                                       { $1 }
+            | forExp                                         { $1 }
+            | break                                          { Break }
+            | letExp                                         { $1 }
 
-seqExp      : '(' expseq ')'
+seqExp      : '(' expseq ')'                                 { }
 
-expseq      : {- empty -}
-            | expseq ';' exp
-            | exp
+expseq      : {- empty -}                                    { }
+            | expseq ';' exp                                 { }
+            | exp                                            { }
 
-negation    : '-' exp
+negation    : '-' exp                                        { Negation $1 }
 
-callExp     : id '(' arglist ')'
+callExp     : id '(' arglist ')'                             { }
 
-arglist     : {- empty -}
-            | arglist ',' exp
-            | exp
+arglist     : {- empty -}                                    { }
+            | arglist ',' exp                                { }
+            | exp                                            { }
 
-infixExp    : exp '*' exp
-            | exp '/' exp
-            | exp '+' exp
-            | exp '-' exp
-            | exp '=' exp
-            | exp '<>' exp
-            | exp '>' exp
-            | exp '<' exp
-            | exp '>=' exp
-            | exp '<=' exp
+infixExp    : exp '*' exp                                    { InfixExp { infixLhs=$1, op=Mul, infixRhs=$3 } }
+            | exp '/' exp                                    { InfixExp { infixLhs=$1, op=Div, infixRhs=$3 } }
+            | exp '+' exp                                    { InfixExp { infixLhs=$1, op=Add, infixRhs=$3 } }
+            | exp '-' exp                                    { InfixExp { infixLhs=$1, op=Sub, infixRhs=$3 } }
+            | exp '=' exp                                    { InfixExp { infixLhs=$1, op=Equal, infixRhs=$3 } }
+            | exp '<>' exp                                   { InfixExp { infixLhs=$1, op=NotEqual, infixRhs=$3 } }
+            | exp '>' exp                                    { InfixExp { infixLhs=$1, op=GreaterThan, infixRhs=$3 } }
+            | exp '<' exp                                    { InfixExp { infixLhs=$1, op=LessThan, infixRhs=$3 } }
+            | exp '>=' exp                                   { InfixExp { infixLhs=$1, op=GreaterThanEqual, infixRhs=$3 } }
+            | exp '<=' exp                                   { InfixExp { infixLhs=$1, op=LessThanEqual, infixRhs=$3 } }
 
-arrCreate   : id '[' exp ']' of exp
+arrCreate   : id '[' exp ']' of exp                          { }
 
-recCreate   : id '{' recFList '}'
+recCreate   : id '{' recFList '}'                            { }
 
-recFList    : fieldCreate
-            | recFList ',' fieldCreate
-            | {- empty -}
+recFList    : fieldCreate                                    { }
+            | recFList ',' fieldCreate                       { }
+            | {- empty -}                                    { }
 
-fieldCreate : id '=' exp
+fieldCreate : id '=' exp                                     { }
 
-assignment  : lValue ':=' exp
+assignment  : lValue ':=' exp                                { }
 
-ifThenElse  : if exp then exp else exp
+ifThenElse  : if exp then exp else exp                       { IfThen { ifCond=$2, thenExp=$4, elseExp=(Just $6) } }
 
-ifThen      : if exp then exp
+ifThen      : if exp then exp                                { IfThen { ifCond=$2, thenExp=$4, elseExp=Nothing } }
 
-whileExp    : while exp do exp
+whileExp    : while exp do exp                               { WhileExp { whileCond=$2, whileBody=$4 } }
 
-forExp      : for id ':=' exp to exp do exp
+forExp      : for id ':=' exp to exp do exp                  { ForExp { forVar=$2, low=$4, high=$6, forBody=$6 } }
 
-letExp      : let declist in expseq end
+letExp      : let declist in expseq end                      { }
 
-declist     : declist dec
-            | dec
+declist     : declist dec                                    { }
+            | dec                                            { }
