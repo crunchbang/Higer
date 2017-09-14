@@ -23,10 +23,4 @@ parseTokenizedFile = do
         print (tigerParse (tokenize contents))
 
 
-parseShit = do
-        fileHandle <- openFile "record1.tig" ReadMode
-        contents <- hGetContents fileHandle
-        print (tokenize contents)
-        print (tigerParse (tokenize contents))
-
 

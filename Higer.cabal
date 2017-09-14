@@ -5,7 +5,7 @@ version:             0.1.0.0
 homepage:            https://github.com/githubuser/Higer#readme
 license:             MIT
 license-file:        LICENSE
-author:              Athul Suresh, Mithum Mathew
+author:              Athul Suresh, Mithun Mathew
 maintainer:          example@example.com
 build-type:          Simple
 extra-source-files:  README.md
@@ -15,6 +15,8 @@ library
   hs-source-dirs:      src
   exposed-modules:     Lib
                      , TigerLex
+                     , TigerParse
+                     , TigerParseHelper
   build-depends:       base >= 4.7 && < 5
                      , array
   build-tools:         happy
