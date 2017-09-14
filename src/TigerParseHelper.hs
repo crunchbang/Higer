@@ -39,20 +39,20 @@ data Exp = LExp LValue
 instance Show Exp where
         show (LExp lv) = "(LExp " ++ show lv ++ ")"
         show NilValue = "(NilValue)"
-        show (IntLiteral i) = "(IntLiteral " ++ show i ++ ")"
-        show (StringLiteral s) = "(StringLiteral " ++ show s ++ ")"
-        show (SeqExp xs) = "(SeqExp " ++ show xs ++ ")"
+        show (IntLiteral i) = "(IntLiteral (" ++ show i ++ "))"
+        show (StringLiteral s) = "(StringLiteral (" ++ show s ++ "))"
+        show (SeqExp xs) = "(SeqExp(" ++ show xs ++ "))"
         show (Negation e) = "(Negation " ++ show e ++ ")"
-        show (CallExp { callFunId = cfid, callFunArgs = cfargs }) = "(CallExp " ++ show cfid ++ " " ++ show cfargs ++ ")"
+        show (CallExp { callFunId = cfid, callFunArgs = cfargs }) = "(CallExp (" ++ show cfid ++ ") (" ++ show cfargs ++ "))"
         show (InfixExp { infixLhs = il, op = op, infixRhs = ir }) = "(InfixExp " ++ show il ++ " " ++ show op ++ " " ++ show ir ++ ")"
-        show (ArrCreate { arrType = at, size = sz, defVal = dv }) = "(ArrCreate " ++ show at ++ " " ++ show sz ++ " " ++ show dv ++ ")"
-        show (RecCreate { recType = rt, recFields = rf }) = "(RecCreate " ++ show rt ++ " " ++ show rf ++ ")"
+        show (ArrCreate { arrType = at, size = sz, defVal = dv }) = "(ArrCreate (" ++ show at ++ ") " ++ show sz ++ " " ++ show dv ++ ")"
+        show (RecCreate { recType = rt, recFields = rf }) = "(RecCreate (" ++ show rt ++ ") (" ++ show rf ++ "))"
         show (Assignment { assignmentLhs = al, assignmentRhs = ar }) = "(Assignment " ++ show al ++ " " ++ show ar ++ ")"
         show (IfThen { ifCond = ic, thenExp = te, elseExp = ee }) = "(IfThen " ++ show ic ++ " " ++ show te ++ " " ++ show ee ++ ")"
         show (WhileExp { whileCond = wc, whileBody = wb }) = "(WhileExp " ++ show wc ++ " " ++ show wb ++ ")"
-        show (ForExp { forVar = fv, low = l, high = h, forBody = fb }) = "(ForExp " ++ show fv ++ " " ++ show l ++ " " ++ show h ++ " " ++ show fb ++ ")"
+        show (ForExp { forVar = fv, low = l, high = h, forBody = fb }) = "(ForExp (" ++ show fv ++ ") " ++ show l ++ " " ++ show h ++ " " ++ show fb ++ ")"
         show (Break) = "(Break)"
-        show (LetExp { letDecl = ld, letBody = lb }) = "(LetExp " ++ show ld ++ " " ++ show lb ++ ")"
+        show (LetExp { letDecl = ld, letBody = lb }) = "(LetExp (" ++ show ld ++ ") (" ++ show lb ++ "))"
 
 data LValue = LVar Id
             | LSubscript LValue Exp
@@ -60,9 +60,9 @@ data LValue = LVar Id
             deriving (Eq)
 
 instance Show LValue where
-        show (LVar iden) = "(LVar " ++ show iden ++ ")"
+        show (LVar iden) = "(LVar (" ++ show iden ++ "))"
         show (LSubscript lval e) = "(LSubscript " ++ show lval ++ " " ++ show e ++ ")"
-        show (LField lval iden) = "(LField " ++ show lval ++ " " ++ show iden ++ ")"
+        show (LField lval iden) = "(LField " ++ show lval ++ " (" ++ show iden ++ "))"
 
 data InfixOp = Add
              | Sub
@@ -92,7 +92,7 @@ data FieldCreate = FieldCreate Id Exp
                  deriving (Eq) 
 
 instance Show FieldCreate where
-        show (FieldCreate iden e) = "(FieldCreate " ++ show iden ++ " " ++ show e ++ ")"
+        show (FieldCreate iden e) = "(FieldCreate (" ++ show iden ++ ") " ++ show e ++ ")"
 
 data Decl = TypeDec { typeId :: Id, ty :: Type }
           | VarDec  { varId :: Id, varType :: Maybe Id, value :: Exp }
@@ -100,9 +100,9 @@ data Decl = TypeDec { typeId :: Id, ty :: Type }
           deriving (Eq)
 
 instance Show Decl where
-        show TypeDec { typeId = ti, ty = t } = "(TypeDec " ++ show ti ++ " " ++ show t ++ ")"
-        show VarDec  { varId = vi, varType = vt, value = v } = "(VarDec " ++ show vi ++ " " ++ show vt ++ " " ++ show v ++ ")"
-        show FunDec  { declFunId = dfid, declFunArgs = dfa, funRetType = frt, funDef = fd } = "(FunDec " ++ show dfid ++ " " ++ show dfa ++ " " ++ show frt ++ " " ++ show fd ++ ")"
+        show TypeDec { typeId = ti, ty = t } = "(TypeDec (" ++ show ti ++ ") " ++ show t ++ ")"
+        show VarDec  { varId = vi, varType = vt, value = v } = "(VarDec (" ++ show vi ++ ") ( " ++ show vt ++ ") " ++ show v ++ ")"
+        show FunDec  { declFunId = dfid, declFunArgs = dfa, funRetType = frt, funDef = fd } = "(FunDec (" ++ show dfid ++ ") (" ++ show dfa ++ ") (" ++ show frt ++ ") " ++ show fd ++ ")"
 
 data Type = Type Id
           | ArrType Id
@@ -110,14 +110,14 @@ data Type = Type Id
           deriving (Eq)
 
 instance Show Type where
-        show (Type iden) = "(Type " ++ show iden ++ ")"
-        show (ArrType iden) = "(ArrType " ++ show iden ++ ")"
+        show (Type iden) = "(Type (" ++ show iden ++ "))"
+        show (ArrType iden) = "(ArrType (" ++ show iden ++ "))"
         show (RecType fds) = "(RecType " ++ show fds ++ ")"
 
 data FieldDecl = FieldDecl { fId :: Id, fType :: Id }
                deriving (Eq)
 
 instance Show FieldDecl where
-        show FieldDecl { fId = fiden, fType = ft } = "(FieldDecl " ++ show fiden ++ " " ++ show ft ++ ")"
+        show FieldDecl { fId = fiden, fType = ft } = "(FieldDecl (" ++ show fiden ++ ") (" ++ show ft ++ "))"
 
 -- Helper functions for displaying the tree
