@@ -9,8 +9,24 @@
 Run the project as follows:
 ```
 $> chmod 755 show_tree.sh
-$> ./show_tree.sh programs/record1.tig 
+$> ./show_tree.sh programs/array1.tig 
 ```
+
+#### Example 
+
+##### Input
+```
+let
+	type  arrtype = array of int
+	var arr1:arrtype := arrtype [10] of 0
+in
+	arr1
+end
+```
+
+##### Output
+![Example output](misc/ex_out.png)
+
 
 ### What has been done so far
 * Lexical Analysis using Alex
@@ -22,4 +38,5 @@ $> ./show_tree.sh programs/record1.tig
 * [alex](https://www.haskell.org/alex/)
 * [happy](https://www.haskell.org/happy/)
 * [Latex with forest package](https://www.ctan.org/pkg/forest?lang=en)
+
 
