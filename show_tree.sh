@@ -35,6 +35,7 @@ echo " \end{forest}
 echo "Compiling latex document"
 latex -output-directory=/tmp /tmp/output.tex 2>&1 > /dev/null
 #cleanup
+echo "Cleanup"
 rm /tmp/output.tex
 rm /tmp/parse_out.txt
 #open file

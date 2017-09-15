@@ -92,7 +92,7 @@ ty          : id                                             { Type (getString $
             | arrTy                                          { $1 }
             | recTy                                          { $1 }
 
-arrTy       : array of id                                    { ArrType (getString $3) }
+arrTy       : array of id                                    { ArrType (Type (getString $3)) }
 
 recTy       : '{' fDecList '}'                               { RecType $2 }
 
@@ -100,13 +100,13 @@ fDecList    : {- empty -}                                    { [] }
             | fieldDec ',' fDecList                          { $1 : $3 }
             | fieldDec                                       { [$1] }
 
-fieldDec    : id ':' id                                      { FieldDecl { fId=(getString $1), fType=(getString $3) } }
+fieldDec    : id ':' id                                      { FieldDecl { fId=(getString $1), fType=(Type (getString $3)) } }
 
 funDec      : function id '(' fDecList ')' '=' exp           { FunDec { declFunId=(getString $2), declFunArgs=$4, funRetType=Nothing, funDef=$7 } }
-            | function id '(' fDecList ')' ':' id '=' exp    { FunDec { declFunId=(getString $2), declFunArgs=$4, funRetType=(Just (getString $7)), funDef=$9 } }
+            | function id '(' fDecList ')' ':' id '=' exp    { FunDec { declFunId=(getString $2), declFunArgs=$4, funRetType=(Just (Type (getString $7))), funDef=$9 } }
 
 varDec      : var id ':=' exp                                { VarDec { varId=(getString $2), varType=Nothing, value=$4 } }
-            | var id ':' id ':=' exp                         { VarDec { varId=(getString $2), varType=(Just (getString $4)), value=$6 } }
+            | var id ':' id ':=' exp                         { VarDec { varId=(getString $2), varType=(Just (Type (getString $4))), value=$6 } }
 
 lValue      : id                                             { LVar (getString $1) }
             | subscript                                      { $1 }
@@ -159,9 +159,9 @@ infixExp    : exp '*' exp                                    { InfixExp { infixL
             | exp '>=' exp                                   { InfixExp { infixLhs=$1, op=GreaterThanEqual, infixRhs=$3 } }
             | exp '<=' exp                                   { InfixExp { infixLhs=$1, op=LessThanEqual, infixRhs=$3 } }
 
-arrCreate   : id '[' exp ']' of exp                          { ArrCreate { arrType=(getString $1), size=$3, defVal=$6 } }
+arrCreate   : id '[' exp ']' of exp                          { ArrCreate { arrType=(Type (getString $1)), size=$3, defVal=$6 } }
 
-recCreate   : id '{' recFList '}'                            { RecCreate { recType=(getString $1), recFields=$3 } }
+recCreate   : id '{' recFList '}'                            { RecCreate { recType=(Type (getString $1)), recFields=$3 } }
 
 recFList    : fieldCreate                                    { [$1] }
             | recFList ',' fieldCreate                       { $3 : $1 }
