@@ -1,3 +1,4 @@
+![logo](higer_logo.png)
 # Higer (Tiger + Haskell)
 
 
