@@ -1,4 +1,5 @@
-![logo](higer_logo.png)
+<img src="https://github.com/crunchbang/Higer/blob/master/higer_logo.png" width="250" height="250">
+
 # Higer (Tiger + Haskell)
 
 
