@@ -8,6 +8,14 @@ module TigerParseHelper (Program(..),
                          FieldDecl(..),
                         ) where
 
+import Data.Map (Map, (!))
+import qualified Data.Map as Map
+
+
+class AST a where
+        parse :: a -> Map Id Type -> (Type, Map Id Type)
+
+
 type Id = String
 
 data Program = Program Exp
@@ -16,6 +24,8 @@ data Program = Program Exp
 instance Show Program where
         show (Program e) = "(Program " ++ show e ++ ")"
 
+instance AST Program where
+        parse (Program e) m = parse e m
 
 
 data Exp = LExp LValue
@@ -53,6 +63,10 @@ instance Show Exp where
         show (ForExp { forVar = fv, low = l, high = h, forBody = fb }) = "(ForExp (" ++ show fv ++ ") " ++ show l ++ " " ++ show h ++ " " ++ show fb ++ ")"
         show (Break) = "(Break)"
         show (LetExp { letDecl = ld, letBody = lb }) = "(LetExp (LetDecl " ++ listToArgs ld ++ ") (LetBody " ++ show lb ++ "))"
+
+instance AST Exp where
+        parse (LExp lv) m = parse lv m
+        parse (NilValue) m = (Type "NilValue", m)
 
 data LValue = LVar Id
             | LSubscript LValue Exp
@@ -124,4 +138,3 @@ listToArgs :: Show a => [a] -> String
 listToArgs (x:xs) = (show x) ++ " " ++ (listToArgs xs)
 listToArgs []     = ""
 
--- Helper functions for displaying the tree
