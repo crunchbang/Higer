@@ -8,9 +8,8 @@ module TigerParseHelper (Program(..),
                          FieldDecl(..),
                         ) where
 
-import Data.Map (Map, (!))
+import Data.Map (Map)
 import qualified Data.Map as Map
-import Safe (headMay)
 
 data MapEntry = SType Type
               | FType Type [Type]
@@ -91,7 +90,23 @@ checkInfixTypes (leftTy, m) (rightTy, n) op | leftTy /= rightTy = error "Infix t
   | op `elem` [Equal, NotEqual] = (leftTy, m)
 
 
---checkRecTypes rt (r:rs) m = 
+contains [] y = True
+contains (x:xs) y = elem x y && contains xs y
+
+equals x y = contains x y && contains y x
+
+fieldDec2List (f:fd) = (fId f, fType f) : fieldDec2List fd
+fieldDec2List [] = []
+
+fieldCreate2List (f:fc) m = (fieldId, fieldTy) : fieldCreate2List fc m
+        where
+                (FieldCreate fieldId _) = f
+                (SType fieldTy, _) = parse f m
+
+checkRecTypes (Type recName) rs m = if (equals (fieldDec2List fds) (fieldCreate2List rs m)) then (SType (Type recName), m) else error "Record type error"
+        where
+                (Just (SType (RecType fds))) = Map.lookup recName m
+
 
 checkIfTypes ic te (Just ee) m = if icTy == (Type "Integer") && (teTy == eeTy) then (teTy, m) else error "IfCond type error"
         where
@@ -136,7 +151,7 @@ instance AST Exp where
         parse (CallExp { callFunId = cfid, callFunArgs = cfargs }) m = checkFunCall cfid (checkArgList cfargs m) m 
         parse (InfixExp { infixLhs = il, op = op, infixRhs = ir }) m = checkInfixTypes (parse il m) (parse ir m) op 
         parse (ArrCreate { arrType = at, size = sz, defVal = dv }) m = checkTypes (SType at, m) (parse dv m) 
-        --parse (RecCreate { recType = rt, recFields = rf }) m = checkRecTypes rt rfs m
+        parse (RecCreate { recType = rt, recFields = rf }) m = checkRecTypes rt rf m
         parse (Assignment { assignmentLhs = al, assignmentRhs = ar }) m = checkTypes (parse al m) (parse ar m)
         parse (IfThen { ifCond = ic, thenExp = te, elseExp = ee }) m = checkIfTypes ic te ee m
         parse (WhileExp { whileCond = wc, whileBody = wb }) m = checkWhileTypes wc wb m
@@ -216,7 +231,27 @@ checkVarDecTypes vi Nothing v m = (vTy, m')
                 (vTy, _) = parse v m
                 m' = Map.insert vi vTy m
 
---checkFunDecTypes dfid dfa (Just rtTy) fd m = 
+getFieldDecTypeList (fd:fds) = fType fd : getFieldDecTypeList fds
+getFieldDecTypeList [] = []
+
+updateSymTabWithFun (fd:fds) m = updateSymTabWithFun fds m'
+        where
+                m' = Map.insert (fId fd) (SType (fType fd)) m
+updateSymTabWithFun [] m = m
+
+checkFunDecTypes dfid dfa (Just rtTy) fd m = (SType rtTy, n)
+        where
+                argTypes = getFieldDecTypeList dfa
+                m' = updateSymTabWithFun dfa m
+                (_, _) = parse fd m'
+                n = Map.insert dfid (FType rtTy argTypes) m
+checkFunDecTypes dfid dfa Nothing fd m = (SType (Type "NilValue"), n)
+        where
+                argTypes = getFieldDecTypeList dfa
+                m' = updateSymTabWithFun dfa m
+                (_, _) = parse fd m'
+                n = Map.insert dfid (FType (Type "NilValue") argTypes) m
+                
 
 instance AST Decl where
         parse TypeDec { typeId = ti, ty = t } m = (SType t, Map.insert ti (SType t) m)
