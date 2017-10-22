@@ -34,10 +34,10 @@ data Program = Program Exp
              deriving (Eq)
 
 instance Show Program where
-        show (Program exp) = "(Program " ++ show exp ++ ")"
+        show (Program expr) = "(Program " ++ show expr ++ ")"
 
 instance AST Program where
-        parse (Program exp) symTab = parse exp symTab
+        parse (Program expr) symTab = parse expr symTab
 ------------------------------
 data Exp = LExp LValue
          | NilValue
@@ -97,7 +97,7 @@ instance Show Exp where
         show (SeqExp xs) = "(SeqExp " ++ listToArgs xs ++ ")"
         show (Negation e) = "(Negation " ++ show e ++ ")"
         show (CallExp { callFunId = cfid, callFunArgs = cfargs }) = "(CallExp (" ++ show cfid ++ ") " ++ listToArgs cfargs ++ ")"
-        show (InfixExp { infixLhs = il, op = op, infixRhs = ir }) = "(InfixExp " ++ show il ++ " " ++ show op ++ " " ++ show ir ++ ")"
+        show (InfixExp { infixLhs = il, op = oper, infixRhs = ir }) = "(InfixExp " ++ show il ++ " " ++ show oper ++ " " ++ show ir ++ ")"
         show (ArrCreate { arrType = at, size = sz, defVal = dv }) = "(ArrCreate " ++ show at ++ " " ++ show sz ++ " " ++ show dv ++ ")"
         show (RecCreate { recType = rt, recFields = rf }) = "(RecCreate " ++ show rt ++ " " ++ listToArgs rf ++ ")"
         show (Assignment { assignmentLhs = al, assignmentRhs = ar }) = "(Assignment " ++ show al ++ " " ++ show ar ++ ")"
@@ -121,10 +121,10 @@ checkCallExp funName callArgTypes symTab = if callArgTypes == argTypes
                                                       where Just (FType returnType argTypes) = Map.lookup funName symTab
 
 exp2Types :: [Exp] -> SymTab -> [Type]
-exp2Types [exp] symTab = [eType]
-        where (SType eType, _) = parse exp symTab
-exp2Types (exp:exps) symTab = eType : (exp2Types exps symTab)
-        where (SType eType, _) = parse exp symTab
+exp2Types expList symTab = case expList of
+                             [] -> []
+                             (e:es) -> eType : (exp2Types es symTab)
+                                     where (SType eType, _) = parse e symTab
 
 
 checkInfixExp :: (EvalType, SymTab) -> (EvalType, SymTab) -> InfixOp -> (EvalType, SymTab)
@@ -137,6 +137,7 @@ checkInfixExp (lhsType, symTab1) (rhsType, _) op
                                                                             then (lhsType, symTab1) 
                                                                             else error ("[Semantic Error] Infix Type Error: " ++ show lhsType ++ " " ++ show rhsType)
   | op `elem` [Equal, NotEqual] = (lhsType, symTab1)
+  | otherwise = error "[Semantic Error] Infix Type Error(catchall)"
 
 
 contains :: Eq a => [a] -> [a] -> Bool
@@ -308,38 +309,39 @@ isUnique id symTab = case (Map.lookup id symTab) of
                        Nothing -> True
                        _ -> False
 
-checkVarDecTypes :: 
-checkVarDecTypes varId (Just varType) value symTab = if (isUnique vi symTab) && varType == vTy 
-                                                        then (SType vTy, m') 
-                                                        else error ("[Semantic error] VarDec type error:" ++ show varType ++ " " ++ show vTy)
-                                                                where
-                                                                        (SType vTy, _) = parse value symTab
-                                                                        m' = Map.insert vi (SType vTy) symTab
-checkVarDecTypes vi Nothing v symTab = if (isUnique vi symTab) then (vTy, m') else error "Duplicate declaration"
-        where
-                (vTy, _) = parse v symTab
-                m' = Map.insert vi vTy symTab
+checkVarDecTypes :: Id -> Maybe Type -> Exp -> SymTab -> (EvalType, SymTab)
+checkVarDecTypes varId maybeVarType value symTab = let (SType vTy, _) = parse value symTab
+                                                       symTab' = Map.insert varId (SType vTy) symTab
+                                                    in case maybeVarType of
+                                                           Nothing      -> if (isUnique varId symTab) 
+                                                                              then (SType vTy, symTab') 
+                                                                              else error "[Semantic error] Duplicate declaration"
+                                                           Just varType -> if (isUnique varId symTab) && varType == vTy 
+                                                                              then (SType vTy, symTab') 
+                                                                               else error ("[Semantic error] VarDec Type Error:" ++ show varType ++ " " ++ show vTy)
 
-getFieldDecTypeList (fd:fds) = fType fd : getFieldDecTypeList fds
-getFieldDecTypeList [] = []
+fieldDec2Type :: [FieldDecl] -> [Type]
+fieldDec2Type (fd:fds) = fType fd : fieldDec2Type fds
+fieldDec2Type [] = []
 
-updateSymTabWithFun (fd:fds) symTab = updateSymTabWithFun fds m'
-        where
-                m' = Map.insert (fId fd) (SType (fType fd)) symTab
+updateSymTabWithFun :: [FieldDecl] -> SymTab -> SymTab
+updateSymTabWithFun (fd:fds) symTab = updateSymTabWithFun fds symTab' 
+        where symTab' = Map.insert (fId fd) (SType (fType fd)) symTab
 updateSymTabWithFun [] symTab = symTab
 
-checkFunDecTypes dfid dfa (Just rtTy) fd symTab = if (isUnique dfid symTab) then (SType rtTy, n) else error "Duplicate fun definition error"
-        where
-                argTypes = getFieldDecTypeList dfa
-                m' = updateSymTabWithFun dfa symTab
-                (_, _) = parse fd m'
-                n = Map.insert dfid (FType rtTy argTypes) symTab
-checkFunDecTypes dfid dfa Nothing fd symTab = if (isUnique dfid symTab) then (SType (Type "NilValue"), n) else error "Duplicate fun definition error"
-        where
-                argTypes = getFieldDecTypeList dfa
-                m' = updateSymTabWithFun dfa symTab
-                (_, _) = parse fd m'
-                n = Map.insert dfid (FType (Type "NilValue") argTypes) symTab
+checkFunDecTypes :: Id -> [FieldDecl] -> Maybe Type -> Exp -> SymTab -> (EvalType, SymTab) 
+checkFunDecTypes funId funArgs maybeRetType funBody symTab = let argTypes = fieldDec2Type funArgs
+                                                                 s' = updateSymTabWithFun funArgs symTab
+                                                                 (_, _) = parse funBody s'
+                                                              in case maybeRetType of
+                                                                   Just retType -> if (isUnique funId symTab) 
+                                                                                   then (SType retType, newSymTab) 
+                                                                                   else error "[Semantic error] Duplicate Func Definition Error"
+                                                                                           where newSymTab = Map.insert funId (FType retType argTypes) symTab
+                                                                   Nothing -> if (isUnique funId symTab) 
+                                                                                 then (SType (Type "NilValue"), newSymTab) 
+                                                                                 else error "[Semantic error] Duplicate Func Definition Error"
+                                                                                         where newSymTab = Map.insert funId (FType (Type "NilValue") argTypes) symTab
                 
 
 instance AST Decl where
