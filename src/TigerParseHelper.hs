@@ -8,6 +8,7 @@ module TigerParseHelper (Program(..),
                          FieldDecl(..),
                          AST,
                          startParse,
+                         parseSeq,
                          MapEntry(..)
                         ) where
 
@@ -18,39 +19,74 @@ data MapEntry = SType Type
               | FType Type [Type]
               deriving (Show, Eq)
 
-class AST a where
-        parse :: a -> Map Id MapEntry -> (MapEntry, Map Id MapEntry)
-
-startParse a = parse a (Map.insert "_" (SType (Type "NilVale")) (Map.empty))
-
 type Id = String
+type SymTab = Map Id MapEntry 
+type EvalType = MapEntry
 
+class AST a where
+        parse :: a -> SymTab -> (EvalType, SymTab)
+
+startParse :: AST a => a -> (EvalType, SymTab)
+startParse a = parse a (Map.empty)
+
+------------------------------
 data Program = Program Exp
              deriving (Eq)
 
 instance Show Program where
-        show (Program e) = "(Program " ++ show e ++ ")"
+        show (Program exp) = "(Program " ++ show exp ++ ")"
 
 instance AST Program where
-        parse (Program e) m = parse e m
-
-
+        parse (Program exp) symTab = parse exp symTab
+------------------------------
 data Exp = LExp LValue
          | NilValue
          | IntLiteral Int
          | StringLiteral String
          | SeqExp [Exp]
          | Negation Exp
-         | CallExp { callFunId :: Id, callFunArgs :: [Exp] }
-         | InfixExp { infixLhs :: Exp, op :: InfixOp, infixRhs :: Exp }
-         | ArrCreate { arrType :: Type, size :: Exp, defVal :: Exp }
-         | RecCreate { recType :: Type, recFields :: [FieldCreate] }
-         | Assignment { assignmentLhs :: LValue, assignmentRhs :: Exp }
-         | IfThen { ifCond :: Exp, thenExp :: Exp, elseExp :: Maybe Exp }
-         | WhileExp { whileCond :: Exp, whileBody :: Exp }
-         | ForExp { forVar :: Id, low :: Exp, high :: Exp, forBody :: Exp }
+         | CallExp    { 
+                        callFunId :: Id, 
+                        callFunArgs :: [Exp]                 
+                      }
+         | InfixExp   { 
+                        infixLhs :: Exp, 
+                        op :: InfixOp, 
+                        infixRhs :: Exp       
+                      }
+         | ArrCreate  { 
+                        arrType :: Type, 
+                        size :: Exp, 
+                        defVal :: Exp           
+                      }
+         | RecCreate  { 
+                        recType :: Type,
+                        recFields :: [FieldCreate]           
+                      }
+         | Assignment { 
+                        assignmentLhs :: LValue,
+                        assignmentRhs :: Exp         
+                      }
+         | IfThen     { 
+                        ifCond :: Exp, 
+                        thenExp :: Exp, 
+                        elseExp :: Maybe Exp   
+                      }
+         | WhileExp   { 
+                        whileCond :: Exp, 
+                        whileBody :: Exp                    
+                      }
+         | ForExp     { 
+                        forVar :: Id, 
+                        low :: Exp, 
+                        high :: Exp, 
+                        forBody :: Exp 
+                      }
          | Break
-         | LetExp { letDecl :: [Decl], letBody :: Exp }
+         | LetExp     { 
+                        letDecl :: [Decl], 
+                        letBody :: Exp                     
+                      }
          deriving (Eq)
 
 instance Show Exp where
@@ -72,98 +108,128 @@ instance Show Exp where
         show (LetExp { letDecl = ld, letBody = lb }) = "(LetExp (LetDecl " ++ listToArgs ld ++ ") (LetBody " ++ show lb ++ "))"
 
 
-
-parseSeq [e] m = parse e m
-parseSeq (e:es) m = parseSeq es m'
-                where (_, m') = parse e m
-parseSeq [] m = error "Empty SeqExp"
-
-checkTypes (ty1, m) (ty2, n) = if ty1 == ty2 then (ty1, m) else error ("Type mismatch:" ++ show ty1 ++ " " ++ show ty2)
-
-checkFunCall cfid cfargs m = if cfargs == argTy then (SType retTy, m) else error ("Type mismatch" ++ show cfargs ++ " " ++ show argTy)
-        where Just (FType retTy argTy) = Map.lookup cfid m
-
-checkArgList [c] m = [ty]
-        where (SType ty, _) = parse c m
-checkArgList (c:cs) m = cty : (checkArgList cs m)
-        where (SType cty, _) = parse c m
-
-checkInfixTypes (leftTy, m) (rightTy, n) op | leftTy /= rightTy = error "Infix type error"
-  | op `elem` [Add, Sub, Mul, Div]  = if leftTy == (SType (Type "int")) then (leftTy, m) else error "Infix error"
-  | op `elem` [GreaterThanEqual, GreaterThan, LessThanEqual, LessThan] = if leftTy == (SType (Type "int")) || leftTy == (SType (Type "string")) then (leftTy, m) else error "Infix error"
-  | op `elem` [Equal, NotEqual] = (leftTy, m)
+compareTypes :: (EvalType, SymTab) -> (EvalType, SymTab) -> (EvalType, SymTab)
+compareTypes (type1, symTab1) (type2, _) = if type1 == type2 
+                                                  then (type1, symTab1) 
+                                                  else error ("[Semantic Error] Type mismatch: " ++ show type1 ++ " " ++ show type2)
 
 
+checkCallExp :: Id -> [Type] -> SymTab -> (EvalType, SymTab)
+checkCallExp funName callArgTypes symTab = if callArgTypes == argTypes 
+                                              then (SType returnType, symTab) 
+                                              else error ("[Semantic Error] Function Call Type mismatch: " ++ show callArgTypes ++ " " ++ show argTypes)
+                                                      where Just (FType returnType argTypes) = Map.lookup funName symTab
+
+exp2Types :: [Exp] -> SymTab -> [Type]
+exp2Types [exp] symTab = [eType]
+        where (SType eType, _) = parse exp symTab
+exp2Types (exp:exps) symTab = eType : (exp2Types exps symTab)
+        where (SType eType, _) = parse exp symTab
+
+
+checkInfixExp :: (EvalType, SymTab) -> (EvalType, SymTab) -> InfixOp -> (EvalType, SymTab)
+checkInfixExp (lhsType, symTab1) (rhsType, _) op 
+  | lhsType /= rhsType = error ("[Semantic Error] Infix Type Error: " ++ show lhsType ++ " " ++ show rhsType)
+  | op `elem` [Add, Sub, Mul, Div]  = if lhsType == (SType (Type "int")) 
+                                         then (lhsType, symTab1) 
+                                         else error ("[Semantic Error] Infix Type Error: " ++ show lhsType ++ " " ++ show rhsType)
+  | op `elem` [GreaterThanEqual, GreaterThan, LessThanEqual, LessThan] = if lhsType == (SType (Type "int")) || lhsType == (SType (Type "string")) 
+                                                                            then (lhsType, symTab1) 
+                                                                            else error ("[Semantic Error] Infix Type Error: " ++ show lhsType ++ " " ++ show rhsType)
+  | op `elem` [Equal, NotEqual] = (lhsType, symTab1)
+
+
+contains :: Eq a => [a] -> [a] -> Bool
 contains [] y = True
 contains (x:xs) y = elem x y && contains xs y
 
+equals :: Eq a => [a] -> [a] -> Bool
 equals x y = contains x y && contains y x
 
-fieldDec2List (f:fd) = (fId f, fType f) : fieldDec2List fd
+fieldDec2List :: [FieldDecl] -> [(Id, Type)]
+fieldDec2List (f:fds) = (fId f, fType f) : fieldDec2List fds
 fieldDec2List [] = []
 
-fieldCreate2List (f:fc) m = (fieldId, fieldTy) : fieldCreate2List fc m
+fieldCreate2List :: [FieldCreate] -> SymTab -> [(Id, Type)]
+fieldCreate2List (f:fcs) symTab = (fieldId, fieldTy) : fieldCreate2List fcs symTab
         where
                 (FieldCreate fieldId _) = f
-                (SType fieldTy, _) = parse f m
-fieldCreate2List [] m = []
+                (SType fieldTy, _) = parse f symTab
+fieldCreate2List [] symTab = []
 
-checkRecTypes (Type recName) rs m = if (equals (fieldDec2List fds) (fieldCreate2List rs m)) then (SType (Type recName), m) else error ("Record type error:" ++ show recName ++ " " ++ show rs ++ " " ++ show (fieldDec2List fds) ++ " " ++ show (fieldCreate2List rs m ))
+
+checkRecTypes :: Type -> [FieldCreate] -> SymTab -> (EvalType, SymTab)
+checkRecTypes (Type recName) recFields symTab = if (equals declTypes recTypes) 
+                                                   then (SType (Type recName), symTab) 
+                                                   else error ("[Semantic error] Record Type Error:" ++ show recName ++ " " ++ show recFields 
+                                                                ++ " " ++ show declTypes ++ " " ++ show recTypes)
+                                                           where 
+                                                                   (Just (SType (RecType fieldDecls))) = Map.lookup recName symTab
+                                                                   declTypes = fieldDec2List fieldDecls
+                                                                   recTypes  = fieldCreate2List recFields symTab
+
+
+checkIfTypes :: Exp -> Exp -> Maybe Exp -> SymTab -> (EvalType, SymTab)
+checkIfTypes ifCond thenExp maybeElse symTab = let (SType ifType, _) = parse ifCond symTab
+                                                   (thenType, _) = parse thenExp symTab
+                                               in case maybeElse of
+                                                   Nothing        -> if ifType == (Type "int") 
+                                                                        then (thenType, symTab) 
+                                                                        else error ("[Semantic error] If Type Error: " ++ show thenType)
+                                                   Just elseExp  -> if ifType == (Type "int") && (thenType == elseType) 
+                                                                        then (thenType, symTab) 
+                                                                        else error ("[Semantic error] If Type Error: " ++ show thenType ++ " " ++ show elseType)
+                                                                             where (elseType, _) = parse elseExp symTab
+
+checkWhileTypes :: Exp -> Exp -> SymTab -> (EvalType, SymTab)
+checkWhileTypes whileCond whileBody symTab = if whileCondType == (Type "int") 
+                                                then (whileBodyType, symTab) 
+                                                else error "WhileCond error"
+                                                        where
+                                                                (SType whileCondType, _) = parse whileCond symTab
+                                                                (whileBodyType, _) = parse whileBody symTab
+
+checkForTypes :: Id -> Exp -> Exp -> Exp -> SymTab -> (EvalType, SymTab)
+checkForTypes forVar low high forBody symTab = if lowType == (Type "int") && highType == (Type "int") 
+                                                  then (bodyType, symTab) 
+                                                  else error ("[Semantic error] For Type Error: " ++ show lowType ++ " " ++ show highType)
+                                                          where
+                                                                  (SType lowType, _) = parse low symTab
+                                                                  (SType highType, _) = parse high symTab
+                                                                  symTab' = Map.insert forVar (SType (Type "int")) symTab
+                                                                  (bodyType, _) = parse forBody symTab'
+
+
+checkLetTypes :: [Decl] -> Exp -> SymTab -> (EvalType, SymTab)
+checkLetTypes letDecl letBody symTab = (letType, symTab)
         where
-                (Just (SType (RecType fds))) = Map.lookup recName m
+                (_, symTab') = parseSeq letDecl symTab
+                (letType, _) = parse letBody symTab'
 
-
-checkIfTypes ic te (Just ee) m = if icTy == (Type "int") && (teTy == eeTy) then (teTy, m) else error "IfCond type error"
-        where
-                (SType icTy, _) = parse ic m
-                (teTy, _) = parse te m
-                (eeTy, _) = parse ee m
-checkIfTypes ic te Nothing m = if icTy == (Type "int") then (teTy, m) else error "IfCond type error"
-        where
-                (SType icTy, _) = parse ic m
-                (teTy, _) = parse te m
-
-
-checkWhileTypes wc wb m = if wcTy == (Type "int") then (wbTy, m) else error "WhileCond error"
-        where
-                (SType wcTy, _) = parse wc m
-                (wbTy, _) = parse wb m
-
-checkForTypes fv l h fb m = if lTy == (Type "int") && hTy == (Type "int") then (ty, m) else error "For type error"
-        where
-                (SType lTy, _) = parse l m
-                (SType hTy, x) = parse h m
-                m' = Map.insert fv (SType (Type "int")) m
-                (ty, y) = parse fb m'
-
-updateSymTab [lb] m = parse lb m
-updateSymTab (l:lbs) m = updateSymTab lbs m'
-                where (_, m') = parse l m
-updateSymTab [] m = error "Empty Decl"
-
-checkLetTypes ld lb m = (ty, m)
-        where
-                (_, m') = updateSymTab ld m
-                (ty, _) = parse lb m'
+parseSeq :: AST a => [a] -> SymTab -> (EvalType, SymTab)
+parseSeq [] symTab = error "[Semantic error] Empty Sequence"
+parseSeq [e] symTab = parse e symTab
+parseSeq (e:es) symTab = parseSeq es symTab'
+                where (_, symTab') = parse e symTab
 
 instance AST Exp where
-        parse (LExp lv) m = parse lv m
-        parse (NilValue) m = (SType (Type "NilValue"), m)
-        parse (IntLiteral _) m = (SType (Type "int"), m)
-        parse (StringLiteral _) m = (SType (Type "string"), m)
-        parse (SeqExp es) m = parseSeq es m
-        parse (Negation e) m = checkTypes (parse e m) (SType (Type "int"), m)
-        parse (CallExp { callFunId = cfid, callFunArgs = cfargs }) m = checkFunCall cfid (checkArgList cfargs m) m 
-        parse (InfixExp { infixLhs = il, op = op, infixRhs = ir }) m = checkInfixTypes (parse il m) (parse ir m) op 
-        --parse (ArrCreate { arrType = at, size = sz, defVal = dv }) m = checkTypes (SType at, m) (parse dv m) 
-        parse (ArrCreate { arrType = at, size = sz, defVal = dv }) m = (SType at, m) 
-        parse (RecCreate { recType = rt, recFields = rf }) m = checkRecTypes rt rf m
-        parse (Assignment { assignmentLhs = al, assignmentRhs = ar }) m = checkTypes (parse al m) (parse ar m)
-        parse (IfThen { ifCond = ic, thenExp = te, elseExp = ee }) m = checkIfTypes ic te ee m
-        parse (WhileExp { whileCond = wc, whileBody = wb }) m = checkWhileTypes wc wb m
-        parse (ForExp { forVar = fv, low = l, high = h, forBody = fb }) m = checkForTypes fv l h fb m
-        parse (Break) m = (SType (Type "NilValue"), m)
-        parse (LetExp { letDecl = ld, letBody = lb }) m = checkLetTypes ld lb m
+        parse (LExp lvalue) symTab = parse lvalue symTab
+        parse (NilValue) symTab = (SType (Type "NilValue"), symTab)
+        parse (IntLiteral _) symTab = (SType (Type "int"), symTab)
+        parse (StringLiteral _) symTab = (SType (Type "string"), symTab)
+        parse (SeqExp es) symTab = parseSeq es symTab
+        parse (Negation e) symTab = compareTypes (parse e symTab) (SType (Type "int"), symTab)
+        parse (CallExp { callFunId = cfid, callFunArgs = cfargs }) symTab = checkCallExp cfid (exp2Types cfargs symTab) symTab 
+        parse (InfixExp { infixLhs = il, op = op, infixRhs = ir }) symTab = checkInfixExp (parse il symTab) (parse ir symTab) op 
+        parse (ArrCreate { arrType = at, size = sz, defVal = dv }) symTab = (SType at, symTab) 
+        parse (RecCreate { recType = rt, recFields = rf }) symTab = checkRecTypes rt rf symTab
+        parse (Assignment { assignmentLhs = al, assignmentRhs = ar }) symTab = compareTypes (parse al symTab) (parse ar symTab)
+        parse (IfThen { ifCond = ic, thenExp = te, elseExp = ee }) symTab = checkIfTypes ic te ee symTab
+        parse (WhileExp { whileCond = wc, whileBody = wb }) symTab = checkWhileTypes wc wb symTab
+        parse (ForExp { forVar = fv, low = l, high = h, forBody = fb }) symTab = checkForTypes fv l h fb symTab
+        parse (Break) symTab = (SType (Type "NilValue"), symTab)
+        parse (LetExp { letDecl = ld, letBody = lb }) symTab = checkLetTypes ld lb symTab
+------------------------------
 
 data LValue = LVar Id
             | LSubscript LValue Exp
@@ -175,22 +241,25 @@ instance Show LValue where
         show (LSubscript lval e) = "(LSubscript " ++ show lval ++ " " ++ show e ++ ")"
         show (LField lval iden) = "(LField " ++ show lval ++ " (" ++ show iden ++ "))"
 
-getFieldType (f:fd) iden = if (fId f == iden) then fType f else getFieldType fd iden
+
+getFieldType (f:fd) iden = if (fId f == iden) 
+                              then fType f 
+                              else getFieldType fd iden
 getFieldType [] iden = error "Fieldtype mismatch"
 
 instance AST LValue where
-        parse (LVar iden) m = (entry, m)
-                where
-                        (Just entry) = Map.lookup iden m
-        parse (LSubscript lval e) m = if eTy == (Type "int") then (parse lval m) else error "LSubscript type error"
-                where
-                        (SType eTy, _) = parse e m
-        parse (LField (LVar recName) iden) m = (SType idenTy, m)
-                where
-                        (Just (SType (Type recTy))) = Map.lookup recName m
-                        (Just (SType (RecType fd))) = Map.lookup recTy m
-                        idenTy = getFieldType fd iden
-
+        parse (LVar iden) symTab = (entry, symTab)
+                where (Just entry) = Map.lookup iden symTab
+        parse (LSubscript lval e) symTab = if eTy == (Type "int") 
+                                              then (parse lval symTab) 
+                                              else error "LSubscript type error"
+                                                      where (SType eTy, _) = parse e symTab
+        parse (LField (LVar recName) iden) symTab = (SType idenTy, symTab)
+                where 
+                      (Just (SType (Type recTy))) = Map.lookup recName symTab
+                      (Just (SType (RecType fd))) = Map.lookup recTy symTab
+                      idenTy = getFieldType fd iden
+------------------------------
 data InfixOp = Add
              | Sub
              | Mul
@@ -214,7 +283,7 @@ instance Show InfixOp where
         show LessThan = "(LessThan)"
         show GreaterThanEqual = "(GreaterThanEqual)"
         show LessThanEqual = "(LessThanEqual)"
-
+------------------------------
 data FieldCreate = FieldCreate Id Exp
                  deriving (Eq) 
 
@@ -222,8 +291,8 @@ instance Show FieldCreate where
         show (FieldCreate iden e) = "(FieldCreate (" ++ show iden ++ ") " ++ show e ++ ")"
 
 instance AST FieldCreate where
-        parse (FieldCreate id e) m = (parse e m)
-
+        parse (FieldCreate id e) symTab = (parse e symTab)
+------------------------------
 data Decl = TypeDec { typeId :: Id, ty :: Type }
           | VarDec  { varId :: Id, varType :: Maybe Type, value :: Exp }
           | FunDec  { declFunId :: Id, declFunArgs :: [FieldDecl], funRetType :: Maybe Type, funDef :: Exp }
@@ -234,48 +303,50 @@ instance Show Decl where
         show VarDec  { varId = vi, varType = vt, value = v } = "(VarDec (" ++ show vi ++ ")  " ++ show vt ++ " " ++ show v ++ ")"
         show FunDec  { declFunId = dfid, declFunArgs = dfa, funRetType = frt, funDef = fd } = "(FunDec (" ++ show dfid ++ ") " ++ listToArgs dfa ++ " " ++ show frt ++ " " ++ show fd ++ ")"
 
+isUnique :: Id -> SymTab -> Bool
+isUnique id symTab = case (Map.lookup id symTab) of
+                       Nothing -> True
+                       _ -> False
 
-isUnique id m = case (Map.lookup id m) of
-                  Nothing -> True
-                  _ -> False
-
-
-checkVarDecTypes vi (Just vtTy) v m = if (isUnique vi m) && vtTy == vTy then (SType vTy, m') else error ("VarDec type error:" ++ show vtTy ++ " " ++ show vTy)
+checkVarDecTypes :: 
+checkVarDecTypes varId (Just varType) value symTab = if (isUnique vi symTab) && varType == vTy 
+                                                        then (SType vTy, m') 
+                                                        else error ("[Semantic error] VarDec type error:" ++ show varType ++ " " ++ show vTy)
+                                                                where
+                                                                        (SType vTy, _) = parse value symTab
+                                                                        m' = Map.insert vi (SType vTy) symTab
+checkVarDecTypes vi Nothing v symTab = if (isUnique vi symTab) then (vTy, m') else error "Duplicate declaration"
         where
-                (SType vTy, _) = parse v m
-                m' = Map.insert vi (SType vTy) m
-checkVarDecTypes vi Nothing v m = if (isUnique vi m) then (vTy, m') else error "Duplicate declaration"
-        where
-                (vTy, _) = parse v m
-                m' = Map.insert vi vTy m
+                (vTy, _) = parse v symTab
+                m' = Map.insert vi vTy symTab
 
 getFieldDecTypeList (fd:fds) = fType fd : getFieldDecTypeList fds
 getFieldDecTypeList [] = []
 
-updateSymTabWithFun (fd:fds) m = updateSymTabWithFun fds m'
+updateSymTabWithFun (fd:fds) symTab = updateSymTabWithFun fds m'
         where
-                m' = Map.insert (fId fd) (SType (fType fd)) m
-updateSymTabWithFun [] m = m
+                m' = Map.insert (fId fd) (SType (fType fd)) symTab
+updateSymTabWithFun [] symTab = symTab
 
-checkFunDecTypes dfid dfa (Just rtTy) fd m = if (isUnique dfid m) then (SType rtTy, n) else error "Duplicate fun definition error"
+checkFunDecTypes dfid dfa (Just rtTy) fd symTab = if (isUnique dfid symTab) then (SType rtTy, n) else error "Duplicate fun definition error"
         where
                 argTypes = getFieldDecTypeList dfa
-                m' = updateSymTabWithFun dfa m
+                m' = updateSymTabWithFun dfa symTab
                 (_, _) = parse fd m'
-                n = Map.insert dfid (FType rtTy argTypes) m
-checkFunDecTypes dfid dfa Nothing fd m = if (isUnique dfid m) then (SType (Type "NilValue"), n) else error "Duplicate fun definition error"
+                n = Map.insert dfid (FType rtTy argTypes) symTab
+checkFunDecTypes dfid dfa Nothing fd symTab = if (isUnique dfid symTab) then (SType (Type "NilValue"), n) else error "Duplicate fun definition error"
         where
                 argTypes = getFieldDecTypeList dfa
-                m' = updateSymTabWithFun dfa m
+                m' = updateSymTabWithFun dfa symTab
                 (_, _) = parse fd m'
-                n = Map.insert dfid (FType (Type "NilValue") argTypes) m
+                n = Map.insert dfid (FType (Type "NilValue") argTypes) symTab
                 
 
 instance AST Decl where
-        parse TypeDec { typeId = ti, ty = t } m = (SType t, Map.insert ti (SType t) m)
-        parse VarDec  { varId = vi, varType = vt, value = v } m = checkVarDecTypes vi vt v m
-        parse FunDec  { declFunId = dfid, declFunArgs = dfa, funRetType = frt, funDef = fd } m = checkFunDecTypes dfid dfa frt fd m
-
+        parse TypeDec { typeId = ti, ty = t } symTab = (SType t, Map.insert ti (SType t) symTab)
+        parse VarDec  { varId = vi, varType = vt, value = v } symTab = checkVarDecTypes vi vt v symTab
+        parse FunDec  { declFunId = dfid, declFunArgs = dfa, funRetType = frt, funDef = fd } symTab = checkFunDecTypes dfid dfa frt fd symTab
+------------------------------
 data Type = Type Id
           | ArrType Type
           | RecType [FieldDecl]
@@ -286,12 +357,13 @@ instance Show Type where
         show (ArrType iden) = "(ArrType " ++ show iden ++ ")"
         show (RecType fds) = "(RecType " ++ listToArgs fds ++ ")"
 
+------------------------------
 data FieldDecl = FieldDecl { fId :: Id, fType :: Type }
                deriving (Eq)
 
 instance Show FieldDecl where
         show FieldDecl { fId = fiden, fType = ft } = "(FieldDecl (" ++ show fiden ++ ") " ++ show ft ++ ")"
-
+------------------------------
 
 listToArgs :: Show a => [a] -> String
 listToArgs (x:xs) = (show x) ++ " " ++ (listToArgs xs)
