@@ -6,6 +6,9 @@ module TigerParseHelper (Program(..),
                          Decl(..),
                          Type(..),
                          FieldDecl(..),
+                         AST,
+                         startParse,
+                         MapEntry(..)
                         ) where
 
 import Data.Map (Map)
@@ -18,6 +21,7 @@ data MapEntry = SType Type
 class AST a where
         parse :: a -> Map Id MapEntry -> (MapEntry, Map Id MapEntry)
 
+startParse a = parse a (Map.insert "_" (SType (Type "NilVale")) (Map.empty))
 
 type Id = String
 
@@ -74,9 +78,9 @@ parseSeq (e:es) m = parseSeq es m'
                 where (_, m') = parse e m
 parseSeq [] m = error "Empty SeqExp"
 
-checkTypes (ty1, m) (ty2, n) = if ty1 == ty2 then (ty1, m) else error "Type mismatch"
+checkTypes (ty1, m) (ty2, n) = if ty1 == ty2 then (ty1, m) else error ("Type mismatch:" ++ show ty1 ++ " " ++ show ty2)
 
-checkFunCall cfid cfargs m = if cfargs == argTy then (SType retTy, m) else error "Type mismatch"
+checkFunCall cfid cfargs m = if cfargs == argTy then (SType retTy, m) else error ("Type mismatch" ++ show cfargs ++ " " ++ show argTy)
         where Just (FType retTy argTy) = Map.lookup cfid m
 
 checkArgList [c] m = [ty]
@@ -85,8 +89,8 @@ checkArgList (c:cs) m = cty : (checkArgList cs m)
         where (SType cty, _) = parse c m
 
 checkInfixTypes (leftTy, m) (rightTy, n) op | leftTy /= rightTy = error "Infix type error"
-  | op `elem` [Add, Sub, Mul, Div]  = if leftTy == (SType (Type "Integer")) then (leftTy, m) else error "Infix error"
-  | op `elem` [GreaterThanEqual, GreaterThan, LessThanEqual, LessThan] = if leftTy == (SType (Type "Integer")) || leftTy == (SType (Type "String")) then (leftTy, m) else error "Infix error"
+  | op `elem` [Add, Sub, Mul, Div]  = if leftTy == (SType (Type "int")) then (leftTy, m) else error "Infix error"
+  | op `elem` [GreaterThanEqual, GreaterThan, LessThanEqual, LessThan] = if leftTy == (SType (Type "int")) || leftTy == (SType (Type "string")) then (leftTy, m) else error "Infix error"
   | op `elem` [Equal, NotEqual] = (leftTy, m)
 
 
@@ -102,33 +106,34 @@ fieldCreate2List (f:fc) m = (fieldId, fieldTy) : fieldCreate2List fc m
         where
                 (FieldCreate fieldId _) = f
                 (SType fieldTy, _) = parse f m
+fieldCreate2List [] m = []
 
-checkRecTypes (Type recName) rs m = if (equals (fieldDec2List fds) (fieldCreate2List rs m)) then (SType (Type recName), m) else error "Record type error"
+checkRecTypes (Type recName) rs m = if (equals (fieldDec2List fds) (fieldCreate2List rs m)) then (SType (Type recName), m) else error ("Record type error:" ++ show recName ++ " " ++ show rs ++ " " ++ show (fieldDec2List fds) ++ " " ++ show (fieldCreate2List rs m ))
         where
                 (Just (SType (RecType fds))) = Map.lookup recName m
 
 
-checkIfTypes ic te (Just ee) m = if icTy == (Type "Integer") && (teTy == eeTy) then (teTy, m) else error "IfCond type error"
+checkIfTypes ic te (Just ee) m = if icTy == (Type "int") && (teTy == eeTy) then (teTy, m) else error "IfCond type error"
         where
                 (SType icTy, _) = parse ic m
                 (teTy, _) = parse te m
                 (eeTy, _) = parse ee m
-checkIfTypes ic te Nothing m = if icTy == (Type "Integer") then (teTy, m) else error "IfCond type error"
+checkIfTypes ic te Nothing m = if icTy == (Type "int") then (teTy, m) else error "IfCond type error"
         where
                 (SType icTy, _) = parse ic m
                 (teTy, _) = parse te m
 
 
-checkWhileTypes wc wb m = if wcTy == (Type "Integer") then (wbTy, m) else error "WhileCond error"
+checkWhileTypes wc wb m = if wcTy == (Type "int") then (wbTy, m) else error "WhileCond error"
         where
                 (SType wcTy, _) = parse wc m
                 (wbTy, _) = parse wb m
 
-checkForTypes fv l h fb m = if lTy == (Type "Integer") && hTy == (Type "Integer") then (ty, m) else error "For type error"
+checkForTypes fv l h fb m = if lTy == (Type "int") && hTy == (Type "int") then (ty, m) else error "For type error"
         where
                 (SType lTy, _) = parse l m
                 (SType hTy, x) = parse h m
-                m' = Map.insert fv (SType (Type "Integer")) m
+                m' = Map.insert fv (SType (Type "int")) m
                 (ty, y) = parse fb m'
 
 updateSymTab [lb] m = parse lb m
@@ -144,13 +149,14 @@ checkLetTypes ld lb m = (ty, m)
 instance AST Exp where
         parse (LExp lv) m = parse lv m
         parse (NilValue) m = (SType (Type "NilValue"), m)
-        parse (IntLiteral _) m = (SType (Type "Integer"), m)
-        parse (StringLiteral _) m = (SType (Type "String"), m)
+        parse (IntLiteral _) m = (SType (Type "int"), m)
+        parse (StringLiteral _) m = (SType (Type "string"), m)
         parse (SeqExp es) m = parseSeq es m
-        parse (Negation e) m = checkTypes (parse e m) (SType (Type "Integer"), m)
+        parse (Negation e) m = checkTypes (parse e m) (SType (Type "int"), m)
         parse (CallExp { callFunId = cfid, callFunArgs = cfargs }) m = checkFunCall cfid (checkArgList cfargs m) m 
         parse (InfixExp { infixLhs = il, op = op, infixRhs = ir }) m = checkInfixTypes (parse il m) (parse ir m) op 
-        parse (ArrCreate { arrType = at, size = sz, defVal = dv }) m = checkTypes (SType at, m) (parse dv m) 
+        --parse (ArrCreate { arrType = at, size = sz, defVal = dv }) m = checkTypes (SType at, m) (parse dv m) 
+        parse (ArrCreate { arrType = at, size = sz, defVal = dv }) m = (SType at, m) 
         parse (RecCreate { recType = rt, recFields = rf }) m = checkRecTypes rt rf m
         parse (Assignment { assignmentLhs = al, assignmentRhs = ar }) m = checkTypes (parse al m) (parse ar m)
         parse (IfThen { ifCond = ic, thenExp = te, elseExp = ee }) m = checkIfTypes ic te ee m
@@ -169,14 +175,21 @@ instance Show LValue where
         show (LSubscript lval e) = "(LSubscript " ++ show lval ++ " " ++ show e ++ ")"
         show (LField lval iden) = "(LField " ++ show lval ++ " (" ++ show iden ++ "))"
 
+getFieldType (f:fd) iden = if (fId f == iden) then fType f else getFieldType fd iden
+getFieldType [] iden = error "Fieldtype mismatch"
+
 instance AST LValue where
         parse (LVar iden) m = (entry, m)
                 where
                         (Just entry) = Map.lookup iden m
-        parse (LSubscript lval e) m = if eTy == (Type "Integer") then (parse lval m) else error "LSubscript type error"
+        parse (LSubscript lval e) m = if eTy == (Type "int") then (parse lval m) else error "LSubscript type error"
                 where
                         (SType eTy, _) = parse e m
-        --parse (LField lval iden) m = 
+        parse (LField (LVar recName) iden) m = (SType idenTy, m)
+                where
+                        (Just (SType (Type recTy))) = Map.lookup recName m
+                        (Just (SType (RecType fd))) = Map.lookup recTy m
+                        idenTy = getFieldType fd iden
 
 data InfixOp = Add
              | Sub
@@ -222,11 +235,16 @@ instance Show Decl where
         show FunDec  { declFunId = dfid, declFunArgs = dfa, funRetType = frt, funDef = fd } = "(FunDec (" ++ show dfid ++ ") " ++ listToArgs dfa ++ " " ++ show frt ++ " " ++ show fd ++ ")"
 
 
-checkVarDecTypes vi (Just vtTy) v m = if vtTy == vTy then (SType vTy, m') else error "VarDec type error"
+isUnique id m = case (Map.lookup id m) of
+                  Nothing -> True
+                  _ -> False
+
+
+checkVarDecTypes vi (Just vtTy) v m = if (isUnique vi m) && vtTy == vTy then (SType vTy, m') else error ("VarDec type error:" ++ show vtTy ++ " " ++ show vTy)
         where
                 (SType vTy, _) = parse v m
                 m' = Map.insert vi (SType vTy) m
-checkVarDecTypes vi Nothing v m = (vTy, m') 
+checkVarDecTypes vi Nothing v m = if (isUnique vi m) then (vTy, m') else error "Duplicate declaration"
         where
                 (vTy, _) = parse v m
                 m' = Map.insert vi vTy m
@@ -239,13 +257,13 @@ updateSymTabWithFun (fd:fds) m = updateSymTabWithFun fds m'
                 m' = Map.insert (fId fd) (SType (fType fd)) m
 updateSymTabWithFun [] m = m
 
-checkFunDecTypes dfid dfa (Just rtTy) fd m = (SType rtTy, n)
+checkFunDecTypes dfid dfa (Just rtTy) fd m = if (isUnique dfid m) then (SType rtTy, n) else error "Duplicate fun definition error"
         where
                 argTypes = getFieldDecTypeList dfa
                 m' = updateSymTabWithFun dfa m
                 (_, _) = parse fd m'
                 n = Map.insert dfid (FType rtTy argTypes) m
-checkFunDecTypes dfid dfa Nothing fd m = (SType (Type "NilValue"), n)
+checkFunDecTypes dfid dfa Nothing fd m = if (isUnique dfid m) then (SType (Type "NilValue"), n) else error "Duplicate fun definition error"
         where
                 argTypes = getFieldDecTypeList dfa
                 m' = updateSymTabWithFun dfa m

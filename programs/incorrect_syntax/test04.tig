@@ -1,0 +1,8 @@
+/* error: initializing nil expressions not constrained by record type */
+let 
+	type rectype = {name:string, id:int}
+
+	var a:= rectype {name="hello", id=10}
+in
+	a.names
+end

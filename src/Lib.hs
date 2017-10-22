@@ -1,12 +1,14 @@
 module Lib
         (
          tokenizeFile,
-         parseTokenizedFile
+         parseTokenizedFile,
+         syntaxAnalysis
         ) where
 
 import System.IO
 import TigerLex
 import TigerParse
+import TigerParseHelper
 
 tokenizeFile :: IO ()
 tokenizeFile = do
@@ -21,6 +23,15 @@ parseTokenizedFile = do
         fileHandle <- openFile fileName ReadMode
         contents <- hGetContents fileHandle
         print (tigerParse (tokenize contents))
+
+
+
+syntaxAnalysis :: IO ()
+syntaxAnalysis = do
+        fileName <- getLine
+        fileHandle <- openFile fileName ReadMode
+        contents <- hGetContents fileHandle
+        print (startParse (tigerParse (tokenize contents)))
 
 
 
