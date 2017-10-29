@@ -2,7 +2,7 @@ module Lib
         (
          tokenizeFile,
          parseTokenizedFile,
-         startSyntaxAnalysis,
+         startSemanticAnalysis,
          startCompilation
         ) where
 
@@ -27,14 +27,15 @@ parseTokenizedFile = do
 
 
 
-startSyntaxAnalysis :: IO ()
-startSyntaxAnalysis = do
+startSemanticAnalysis :: IO ()
+startSemanticAnalysis = do
         fileName <- getLine
         fileHandle <- openFile fileName ReadMode
         contents <- hGetContents fileHandle
         print (startParse (tigerParse (tokenize contents)))
 
 
-startCompilation :: IO ()
---startCompilation = parseTokenizedFile
-startCompilation = startSyntaxAnalysis
+startCompilation :: String -> IO ()
+startCompilation "semantic" = startSemanticAnalysis
+startCompilation "syntax" = parseTokenizedFile
+startCompilation _ = error "Unknown option"

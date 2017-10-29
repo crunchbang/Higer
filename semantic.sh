@@ -19,7 +19,7 @@ stack build
 echo ""
 echo "${green}[HIGER]: Running the semantic analyzer${reset}"
 echo "echo $filepath|stack exec Higer-exe"
-echo $filepath|stack exec Higer-exe > /tmp/parse_out.txt
+echo $filepath|stack exec -- Higer-exe semantic > /tmp/parse_out.txt
 
 echo ""
 echo "${green}[HIGER]: Syntax output${reset}"
