@@ -2,7 +2,8 @@ module Lib
         (
          tokenizeFile,
          parseTokenizedFile,
-         syntaxAnalysis
+         startSyntaxAnalysis,
+         startCompilation
         ) where
 
 import System.IO
@@ -26,12 +27,14 @@ parseTokenizedFile = do
 
 
 
-syntaxAnalysis :: IO ()
-syntaxAnalysis = do
+startSyntaxAnalysis :: IO ()
+startSyntaxAnalysis = do
         fileName <- getLine
         fileHandle <- openFile fileName ReadMode
         contents <- hGetContents fileHandle
         print (startParse (tigerParse (tokenize contents)))
 
 
-
+startCompilation :: IO ()
+--startCompilation = parseTokenizedFile
+startCompilation = startSyntaxAnalysis

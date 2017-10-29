@@ -1,0 +1,8 @@
+/* error : procedure returns value */
+let
+    type arr = array of int
+	function g(a:int):int = a
+    var a:arr := g(20)
+in 
+	g(2)
+end

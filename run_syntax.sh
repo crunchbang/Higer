@@ -17,7 +17,7 @@ echo "stack build"
 stack build
 
 echo ""
-echo "${green}[HIGER]: Running the parser${reset}"
+echo "${green}[HIGER]: Running the semantic analyzer${reset}"
 echo "echo $filepath|stack exec Higer-exe"
 echo $filepath|stack exec Higer-exe > /tmp/parse_out.txt
 

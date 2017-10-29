@@ -1,7 +1,0 @@
-/* error : procedure returns value */
-let
-	function g(a:int) = a
-    var a:int := g(20)
-in 
-	g(2)
-end
