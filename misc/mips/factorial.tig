@@ -1,0 +1,13 @@
+let
+function factorial(n: int): int =
+        if n < 0
+            then 0
+            else if n = 0
+                then 1
+                else n * factorial(n-1)
+in
+    n := factorial(5)
+	if n = 0
+        then print("Invalid input\n")
+        else print(n)
+end
