@@ -1,5 +1,8 @@
     .text
 main:
+    .data
+hello_str:  .asciiz "Hello World\n"   
+    .text
     la      $a0, hello_str
     li      $v0, 4
     syscall
@@ -7,6 +10,4 @@ main:
     li      $v0, 10
     syscall
 
-    .data
-hello_str:  .asciiz "Hello World\n"   
     

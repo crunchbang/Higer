@@ -8,6 +8,7 @@ module TigerParseHelper (Program(..),
                          FieldDecl(..),
                          AST,
                          startParse,
+                         startCodeGen,
                          parseSeq,
                          MapEntry(..)
                         ) where
@@ -22,12 +23,20 @@ data MapEntry = SType Type
 type Id = String
 type SymTab = Map Id MapEntry 
 type EvalType = MapEntry
+type Code = String
 
 class AST a where
         parse :: a -> SymTab -> (EvalType, SymTab)
 
+class CG a where
+        genCode :: a -> Code
+
 startParse :: AST a => a -> (EvalType, SymTab)
 startParse a = parse a (Map.empty)
+
+
+startCodeGen :: CG a => a -> String
+startCodeGen a = (genCode a) ++ mipsExit
 
 ------------------------------
 data Program = Program Exp
@@ -38,6 +47,13 @@ instance Show Program where
 
 instance AST Program where
         parse (Program expr) symTab = parse expr symTab
+
+mipsBegin = unlines [ ".text\n"
+                    , "main:\n"
+                    ]
+
+instance CG Program where
+        genCode (Program expr) = mipsBegin ++ (genCode expr)
 ------------------------------
 data Exp = LExp LValue
          | NilValue
@@ -88,6 +104,9 @@ data Exp = LExp LValue
                         letBody :: Exp                     
                       }
          deriving (Eq)
+
+
+
 
 instance Show Exp where
         show (LExp lv) = "(LExp " ++ show lv ++ ")"
@@ -230,6 +249,37 @@ instance AST Exp where
         parse (ForExp { forVar = fv, low = l, high = h, forBody = fb }) symTab = checkForTypes fv l h fb symTab
         parse (Break) symTab = (SType (Type "NilValue"), symTab)
         parse (LetExp { letDecl = ld, letBody = lb }) symTab = checkLetTypes ld lb symTab
+
+
+conVar varName = varName ++ "_var"
+
+mipsAlloc varName defVal = unlines [ ".data"
+                                   , (conVar varName) ++ ": .word " ++ (show defVal)
+                                   , ".text"
+                                   ]
+
+mipsLoad :: Exp -> String -> String
+mipsLoad (LExp (LVar varName)) register = unlines [ "lw $" ++ register ++ ", " ++ (conVar varName) ]
+mipsLoad (IntLiteral i) register = unlines [ "li $" ++ register ++ ", " ++ (show i) ]
+mipsLoad _ _ = "# Unidentified exp encountered\n"
+
+mipsStore varName register = unlines [ "sw $" ++ register ++ ", " ++ (conVar varName) ]
+
+mipsExit = unlines [ "li $v0, 10"
+                   , "syscall"
+                   ]
+
+instance CG Exp where
+        genCode item@(LExp (LVar varName)) = (mipsLoad item "t0")
+        genCode (SeqExp xs) = unlines (map genCode xs)
+        genCode (InfixExp { infixLhs = il, op = oper, infixRhs = ir }) = (mipsLoad il "t0") ++ (mipsLoad ir "t1") ++ (genCode oper)
+        genCode (Assignment { assignmentLhs = (LVar lvarName), assignmentRhs = (IntLiteral i) }) = (mipsAlloc lvarName i)
+        genCode (Assignment { assignmentLhs = (LVar lvarName), assignmentRhs = rAssign@(LExp _) }) = (mipsAlloc lvarName 0) ++ (mipsLoad rAssign "t2") ++ (mipsStore lvarName "t2")
+        genCode (Assignment { assignmentLhs = (LVar lvarName), assignmentRhs = rAssign }) = (mipsAlloc lvarName 0) ++ (genCode rAssign) ++ (mipsStore lvarName "t7")
+        --genCode (IfThen { ifCond = ic, thenExp = te, elseExp = ee }) = "(IfThen " ++ show ic ++ " " ++ show te ++ " " ++ show ee ++ ")"
+        genCode (LetExp { letDecl = ld, letBody = lb }) = (unlines (map genCode ld)) ++ (genCode lb)
+        genCode _ = "# Unidentified exp encountered\n"
+
 ------------------------------
 
 data LValue = LVar Id
@@ -260,6 +310,12 @@ instance AST LValue where
                       (Just (SType (Type recTy))) = Map.lookup recName symTab
                       (Just (SType (RecType fd))) = Map.lookup recTy symTab
                       idenTy = getFieldType fd iden
+
+instance CG LValue where
+       -- genCode (LVar iden) = "(LVar (" ++ show iden ++ "))"
+       -- genCode (LSubscript lval e) = "(LSubscript " ++ show lval ++ " " ++ show e ++ ")"
+       -- genCode (LField lval iden) = "(LField " ++ show lval ++ " (" ++ show iden ++ "))"
+        genCode _ = "# Unidentified exp encountered"
 ------------------------------
 data InfixOp = Add
              | Sub
@@ -284,12 +340,32 @@ instance Show InfixOp where
         show LessThan = "(LessThan)"
         show GreaterThanEqual = "(GreaterThanEqual)"
         show LessThanEqual = "(LessThanEqual)"
+
+mipsAdd resReg opReg1 opReg2 = unlines ["add $" ++ resReg ++ ", $" ++ opReg1 ++ ", $" ++ opReg2 ]
+
+
+instance CG InfixOp where
+        genCode Add = mipsAdd "t0" "t0" "t1"
+        -- genCode Sub = "(Sub)"
+        -- genCode Mul = "(Mul)"
+        -- genCode Div = "(Div)"
+        -- genCode Equal = "(Equal)"
+        -- genCode NotEqual = "(NotEqual)"
+        -- genCode GreaterThan = "(GreaterThan)"
+        -- genCode LessThan = "(LessThan)"
+        -- genCode GreaterThanEqual = "(GreaterThanEqual)"
+        -- genCode LessThanEqual = "(LessThanEqual)"
+        genCode _ = "# Unidentified exp encountered"
 ------------------------------
 data FieldCreate = FieldCreate Id Exp
                  deriving (Eq) 
 
 instance Show FieldCreate where
         show (FieldCreate iden e) = "(FieldCreate (" ++ show iden ++ ") " ++ show e ++ ")"
+
+instance CG FieldCreate where
+        genCode _ = "# Unidentified exp encountered"
+        
 
 instance AST FieldCreate where
         parse (FieldCreate id e) symTab = (parse e symTab)
@@ -298,6 +374,11 @@ data Decl = TypeDec { typeId :: Id, ty :: Type }
           | VarDec  { varId :: Id, varType :: Maybe Type, value :: Exp }
           | FunDec  { declFunId :: Id, declFunArgs :: [FieldDecl], funRetType :: Maybe Type, funDef :: Exp }
           deriving (Eq)
+
+instance CG Decl where
+        genCode VarDec  { varId = vi, varType = vt, value = (IntLiteral i) } = (mipsAlloc vi i)
+        genCode VarDec  { varId = vi, varType = vt, value = v } = (mipsAlloc vi 0) ++ (genCode v) ++ (mipsStore vi "t0")
+        genCode _ = "# Unidentified exp encountered"
 
 instance Show Decl where
         show TypeDec { typeId = ti, ty = t } = "(TypeDec (" ++ show ti ++ ") " ++ show t ++ ")"
@@ -359,12 +440,18 @@ instance Show Type where
         show (ArrType iden) = "(ArrType " ++ show iden ++ ")"
         show (RecType fds) = "(RecType " ++ listToArgs fds ++ ")"
 
+instance CG Type where
+        genCode _ = "# Unidentified exp encountered"
+
 ------------------------------
 data FieldDecl = FieldDecl { fId :: Id, fType :: Type }
                deriving (Eq)
 
 instance Show FieldDecl where
         show FieldDecl { fId = fiden, fType = ft } = "(FieldDecl (" ++ show fiden ++ ") " ++ show ft ++ ")"
+
+instance CG FieldDecl where
+        genCode _ = "# Unidentified exp encountered"
 ------------------------------
 
 listToArgs :: Show a => [a] -> String

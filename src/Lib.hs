@@ -3,7 +3,8 @@ module Lib
          tokenizeFile,
          parseTokenizedFile,
          startSemanticAnalysis,
-         startCompilation
+         startCompilation,
+         startCodeGeneration,
         ) where
 
 import System.IO
@@ -26,7 +27,6 @@ parseTokenizedFile = do
         print (tigerParse (tokenize contents))
 
 
-
 startSemanticAnalysis :: IO ()
 startSemanticAnalysis = do
         fileName <- getLine
@@ -34,8 +34,15 @@ startSemanticAnalysis = do
         contents <- hGetContents fileHandle
         print (startParse (tigerParse (tokenize contents)))
 
+startCodeGeneration :: IO ()
+startCodeGeneration = do
+        fileName <- getLine
+        fileHandle <- openFile fileName ReadMode
+        contents <- hGetContents fileHandle
+        putStrLn (startCodeGen (tigerParse (tokenize contents)))
 
 startCompilation :: String -> IO ()
 startCompilation "semantic" = startSemanticAnalysis
 startCompilation "syntax" = parseTokenizedFile
+startCompilation "mips" = startCodeGeneration
 startCompilation _ = error "Unknown option"
