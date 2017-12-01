@@ -269,6 +269,13 @@ mipsExit = unlines [ "li $v0, 10"
                    , "syscall"
                    ]
 
+mipsCond = unlines [ "blez $t0, else_b" ]
+mipsCondExit = unlines [ "j exit_if" ]
+
+mipsElseLabel = "else_b: \n"
+mipsExitIfLabel = "exit_if: \n"
+
+
 instance CG Exp where
         genCode item@(LExp (LVar varName)) = (mipsLoad item "t0")
         genCode (SeqExp xs) = unlines (map genCode xs)
@@ -276,8 +283,9 @@ instance CG Exp where
         genCode (Assignment { assignmentLhs = (LVar lvarName), assignmentRhs = (IntLiteral i) }) = (mipsAlloc lvarName i)
         genCode (Assignment { assignmentLhs = (LVar lvarName), assignmentRhs = rAssign@(LExp _) }) = (mipsAlloc lvarName 0) ++ (mipsLoad rAssign "t2") ++ (mipsStore lvarName "t2")
         genCode (Assignment { assignmentLhs = (LVar lvarName), assignmentRhs = rAssign }) = (mipsAlloc lvarName 0) ++ (genCode rAssign) ++ (mipsStore lvarName "t7")
-        --genCode (IfThen { ifCond = ic, thenExp = te, elseExp = ee }) = "(IfThen " ++ show ic ++ " " ++ show te ++ " " ++ show ee ++ ")"
-        genCode (LetExp { letDecl = ld, letBody = lb }) = (unlines (map genCode ld)) ++ (genCode lb)
+        genCode (IfThen { ifCond = ic, thenExp = te, elseExp = (Just e) }) = (genCode ic) ++ mipsCond ++ (genCode te) ++ mipsCondExit ++ mipsElseLabel ++ (genCode e) ++ mipsExitIfLabel
+        genCode (IfThen { ifCond = ic, thenExp = te, elseExp = Nothing }) = (genCode ic) ++ mipsCond ++ (genCode te) ++ mipsCondExit ++ mipsExitIfLabel
+        genCode (LetExp { letDecl = ld, letBody = lb }) = (unlines (map genCode ld)) ++ (genCode lb) 
         genCode _ = "# Unidentified exp encountered\n"
 
 ------------------------------
@@ -342,19 +350,17 @@ instance Show InfixOp where
         show LessThanEqual = "(LessThanEqual)"
 
 mipsAdd resReg opReg1 opReg2 = unlines ["add $" ++ resReg ++ ", $" ++ opReg1 ++ ", $" ++ opReg2 ]
-
+mipsSub resReg opReg1 opReg2 = unlines ["sub $" ++ resReg ++ ", $" ++ opReg1 ++ ", $" ++ opReg2 ]
 
 instance CG InfixOp where
         genCode Add = mipsAdd "t0" "t0" "t1"
-        -- genCode Sub = "(Sub)"
-        -- genCode Mul = "(Mul)"
-        -- genCode Div = "(Div)"
-        -- genCode Equal = "(Equal)"
+        genCode Sub = mipsSub "t0" "t0" "t1"
+        -- genCode Equal = mipsSub "t0" "t0" "t1" 
         -- genCode NotEqual = "(NotEqual)"
-        -- genCode GreaterThan = "(GreaterThan)"
-        -- genCode LessThan = "(LessThan)"
-        -- genCode GreaterThanEqual = "(GreaterThanEqual)"
-        -- genCode LessThanEqual = "(LessThanEqual)"
+        genCode GreaterThan = mipsSub "t0" "t0" "t1"
+        genCode LessThan = mipsSub "t0" "t1" "t0"
+        --genCode GreaterThanEqual = "(GreaterThanEqual)"
+        --genCode LessThanEqual = "(LessThanEqual)"
         genCode _ = "# Unidentified exp encountered"
 ------------------------------
 data FieldCreate = FieldCreate Id Exp

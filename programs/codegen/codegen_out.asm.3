@@ -14,6 +14,16 @@ li $t1, 1
 add $t0, $t0, $t1
 sw $t0, b_var
 
+lw $t0, b_var
+lw $t1, a_var
+sub $t0, $t1, $t0
+blez $t0, else_b
+lw $t0, a_var
+j exit_if
+else_b: 
+lw $t0, b_var
+exit_if: 
+
 li $v0, 10
 syscall
 
